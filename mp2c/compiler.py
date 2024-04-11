@@ -22,7 +22,6 @@ class Compiler:
                 self.visit_program_head(node, tokens)
             elif node.data == "program_body":
                 self.visit_program_body(node, tokens)
-        tokens.append("}\n")
         return tokens
     
 
