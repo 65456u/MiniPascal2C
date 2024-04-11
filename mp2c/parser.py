@@ -2,9 +2,6 @@ from typing import Any
 import lark
 from lark import Lark, Transformer, v_args
 rules=r"""
-%import common.DIGIT
-%import common.LETTER
-%import common.WS
 programstruct            : program_head ";" program_body "."
 program_head              : "program" id "(" idlist ")"
                           | "program" id
@@ -84,7 +81,7 @@ factor                   : num
                           | func_id "(" expression_list ")"
 
 digits                   : DIGIT+
-id                     : LETTER (LETTER | DIGIT)*
+id                     : IDENTIFIER_TOKEN
 optional_fraction     : empty
                         | "." digits
 num                   : digits optional_fraction
@@ -106,7 +103,10 @@ assignop              : ":="
 empty                 : WS*
 func_id               : id
 uminus                : "-"
-
+IDENTIFIER_TOKEN : /[a-zA-Z_][a-zA-Z0-9_]*/
+%import common.DIGIT
+%import common.LETTER
+%import common.WS
 %ignore WS
 """
 class MP2CParser():
@@ -114,6 +114,4 @@ class MP2CParser():
         self.parser = Lark(rules, start='programstruct')
 
     def __call__(self, code) -> Any:
-        return self.parser.parse(code).pretty()
-
-    
+        return self.parser.parse(code)

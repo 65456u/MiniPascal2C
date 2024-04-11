@@ -80,3 +80,9 @@ fabric.properties
 .idea
 
 __pycache__/
+
+dist
+
+build
+
+*.egg-info
