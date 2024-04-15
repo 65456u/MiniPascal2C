@@ -1,2 +1,3 @@
 from .parser import MP2CParser
-__all___ = ['MP2CParser']
+from visitors import *
+__all___ = ['MP2CParser',]
