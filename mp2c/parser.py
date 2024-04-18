@@ -2,7 +2,9 @@ from typing import Any
 from .visitors import visit_programstruct
 from lark import Lark
 from .utils import format_code
-rules=r"""
+from .context import Context
+
+rules = r"""
 programstruct            : program_head ";" program_body "."
 program_head              : "program" id "(" idlist ")"
                           | "program" id
@@ -115,14 +117,17 @@ CHAR                     : "char"
 %import common.WS
 %ignore WS
 """
-class MP2CParser():
+
+
+class MP2CParser:
     def __init__(self):
-        self.parser = Lark(rules, start='programstruct')
+        self.parser = Lark(rules, start="programstruct")
 
     def __call__(self, code) -> Any:
-        parser=self.parser
-        tree=parser.parse(code)
-        tokens= visit_programstruct(tree)
-        result_string=" ".join(tokens)
-        result_string=format_code(result_string)
+        parser = self.parser
+        tree = parser.parse(code)
+        context = Context()
+        tokens = visit_programstruct(tree, context)
+        result_string = " ".join(tokens)
+        result_string = format_code(result_string)
         return tree, tokens, result_string

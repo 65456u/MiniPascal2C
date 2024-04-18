@@ -1,24 +1,24 @@
 import lark
 from .utils import *
-from .context import Context
+from .context import Context, MiniPascalFunction
 
 
-def visit_empty(node):
+def visit_empty(node, context):
     tokens = []
     return tokens
 
 
-def visit_optional_fraction(node):
+def visit_optional_fraction(node, context):
     return node.children[0].value
 
 
-def visit_num(node):
+def visit_num(node, context):
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(child.value)
         elif child.data == "optional_fraction":
-            optional_fraction_part = visit_optional_fraction(child)
+            optional_fraction_part = visit_optional_fraction(child, context)
             tokens[-1] += "."
             tokens[-1] += optional_fraction_part
         else:
@@ -27,14 +27,14 @@ def visit_num(node):
     return tokens
 
 
-def visit_period(node):
+def visit_period(node, context):
     periods = []
     current_period = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             current_period.append(int(child.value))
         elif child.data == "period":
-            current_period = visit_period(child)
+            current_period = visit_period(child, context)
             periods.append(current_period)
             current_period = []
         else:
@@ -43,53 +43,53 @@ def visit_period(node):
     return periods
 
 
-def visit_basic_type(node):
+def visit_basic_type(node, context):
     return type_map[node.children[0].value]
 
 
-def visit_type(node):
+def visit_type(node, context):
     type = {"basic_type": None, "is_array": False, "period": []}
     for child in node.children:
         if child.data == "basic_type":
-            type["basic_type"] = visit_basic_type(child)
+            type["basic_type"] = visit_basic_type(child, context)
         elif child.data == "period":
-            type["period"] = visit_period(child)
+            type["period"] = visit_period(child, context)
             type["is_array"] = True
         else:
             raise Exception("Unknown type child data: {}".format(child.data))
     return type
 
 
-def visit_id(node):
+def visit_id(node, context):
     return node.children[0].value
 
 
-def visit_idlist(node):
+def visit_idlist(node, context):
     ids = []
     for child in node.children:
         if child.data == "id":
-            ids.append(visit_id(child))
+            ids.append(visit_id(child, context))
         elif child.data == "idlist":
-            ids.extend(visit_idlist(child))
+            ids.extend(visit_idlist(child, context))
         else:
             raise Exception("Unknown idlist child data: {}".format(child.data))
     return ids
 
 
-def visit_value_parameter(node):
+def visit_value_parameter(node, context):
     ids = []
     type = None
     for child in node.children:
         if child.data == "idlist":
-            ids = visit_idlist(child)
+            ids = visit_idlist(child, context)
         elif child.data == "basic_type":
-            type = visit_basic_type(child)
+            type = visit_basic_type(child, context)
         else:
             raise Exception("Unknown value_parameter child data: {}".format(child.data))
     return {"ids": ids, "type": type}
 
 
-def visit_var_parameter(node):
+def visit_var_parameter(node, context):
     tokens = []
     value_parameter = visit_value_parameter(node.children[0])
     first = True
@@ -103,28 +103,27 @@ def visit_var_parameter(node):
     return tokens
 
 
-def visit_parameter(node):
+def visit_parameter(node, context):
     tokens = []
     for child in node.children:
         if child.data == "var_parameter":
-            return visit_var_parameter(child)
+            return visit_var_parameter(child, context)
         elif child.data == "value_parameter":
-            value_parameter = visit_value_parameter(child)
-            tokens.append(value_parameter["type"])
+            value_parameter = visit_value_parameter(child, context)
             first = True
             for id in value_parameter["ids"]:
                 if first:
-                    tokens.append(id)
                     first = False
                 else:
                     tokens.append(",")
-                    tokens.append(id)
+                tokens.append(value_parameter["type"])
+                tokens.append(id)
         else:
             raise Exception("Unknown parameter child data: {}".format(child.data))
     return tokens
 
 
-def visit_parameter_list(node):
+def visit_parameter_list(node, context):
     tokens = []
     first = True
     for child in node.children:
@@ -133,31 +132,31 @@ def visit_parameter_list(node):
             first = False
         else:
             tokens.append(",")
-        tokens.extend(visit_parameter(child))
+        tokens.extend(visit_parameter(child, context))
     return tokens
 
 
-def visit_formal_parameter(node):
+def visit_formal_parameter(node, context):
     tokens = []
     tokens.append("(")
-    parameter_list = visit_parameter_list(node.children[0])
+    parameter_list = visit_parameter_list(node.children[0],context)
     tokens.extend(parameter_list)
     tokens.append(")")
     return tokens
 
 
-def visit_subprogram_head(node):
+def visit_subprogram_head(node, context):
     tokens = []
     basic_type = None
     id = None
     formal_parameter = None
     for child in node.children:
         if child.data == "basic_type":
-            basic_type = visit_basic_type(child)
+            basic_type = visit_basic_type(child, context)
         elif child.data == "id":
-            id = visit_id(child)
+            id = visit_id(child, context)
         elif child.data == "formal_parameter":
-            formal_parameter = visit_formal_parameter(child)
+            formal_parameter = visit_formal_parameter(child, context)
         else:
             raise Exception("Unknown subprogram_head child data: {}".format(child.data))
     if basic_type:
@@ -169,23 +168,23 @@ def visit_subprogram_head(node):
     return tokens
 
 
-def visit_func_id(node):
+def visit_func_id(node, context):
     tokens = []
     for child in node.children:
         assert child.data == "id"
-        id_tokens = visit_id(child)
+        id_tokens = visit_id(child, context)
         tokens.append(id_tokens)
     return tokens
 
 
-def visit_id_varpart(node):
+def visit_id_varpart(node, context):
     tokens = []
     for child in node.children:
         if child.data == "empty":
             return tokens
         elif child.data == "expression_list":
             tokens.append("[")
-            expression_list = visit_expression_list(child)
+            expression_list = visit_expression_list(child, context)
             tokens.extend(expression_list)
             tokens.append("]")
         else:
@@ -193,20 +192,20 @@ def visit_id_varpart(node):
     return tokens
 
 
-def visit_variable(node):
+def visit_variable(node, context):
     tokens = []
     for child in node.children:
         if child.data == "id":
-            tokens.append(visit_id(child))
+            tokens.append(visit_id(child, context))
         elif child.data == "id_varpart":
-            id_varpart = visit_id_varpart(child)
+            id_varpart = visit_id_varpart(child, context)
             tokens.extend(id_varpart)
         else:
             raise Exception("Unknown variable child data: {}".format(child.data))
     return tokens
 
 
-def visit_variable_list(node):
+def visit_variable_list(node, context):
     tokens = []
     first = True
     for child in node.children:
@@ -214,11 +213,11 @@ def visit_variable_list(node):
             first = False
         else:
             tokens.append(",")
-        tokens.extend(visit_variable(child))
+        tokens.extend(visit_variable(child, context))
     return tokens
 
 
-def visit_factor(node):
+def visit_factor(node, context):
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
@@ -229,61 +228,61 @@ def visit_factor(node):
             elif token_type == "UMINUS":
                 tokens.append(uminus_map[token_value])
         elif child.data == "num":
-            num_token = visit_num(child)
+            num_token = visit_num(child, context)
             tokens.extend(num_token)
         elif child.data == "id":
-            id_token = visit_id(child)
+            id_token = visit_id(child, context)
             tokens.extend(id_token)
         elif child.data == "expression":
             tokens.append("(")
-            expression_token = visit_expression(child)
+            expression_token = visit_expression(child, context)
             tokens.extend(expression_token)
             tokens.append(")")
         elif child.data == "factor":
-            factor_token = visit_factor(child)
+            factor_token = visit_factor(child, context)
             tokens.extend(factor_token)
         elif child.data == "func_id":
-            func_id_token = visit_func_id(child)
+            func_id_token = visit_func_id(child, context)
             tokens.extend(func_id_token)
         elif child.data == "expression_list":
             tokens.append("(")
-            expression_list_token = visit_expression_list(child)
+            expression_list_token = visit_expression_list(child, context)
             tokens.extend(expression_list_token)
             tokens.append(")")
         elif child.data == "variable":
-            variable_token = visit_variable(child)
+            variable_token = visit_variable(child, context)
             tokens.extend(variable_token)
         else:
             raise Exception("Unknown factor child data: {}".format(child.data))
     return tokens
 
 
-def visit_term(node):
+def visit_term(node, context):
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(mulop_map[child.value])
         elif child.data == "factor":
-            factor_token = visit_factor(child)
+            factor_token = visit_factor(child, context)
             tokens.extend(factor_token)
         elif child.data == "term":
-            term_token = visit_term(child)
+            term_token = visit_term(child, context)
             tokens.extend(term_token)
         else:
             raise Exception("Unknown term child data: {}".format(child.data))
     return tokens
 
 
-def visit_simple_expression(node):
+def visit_simple_expression(node, context):
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(addop_map[child.value])
         elif child.data == "term":
-            term_token = visit_term(child)
+            term_token = visit_term(child, context)
             tokens.extend(term_token)
         elif child.data == "simple_expression":
-            simple_expression_token = visit_simple_expression(child)
+            simple_expression_token = visit_simple_expression(child, context)
             tokens.extend(simple_expression_token)
         else:
             raise Exception(
@@ -292,23 +291,23 @@ def visit_simple_expression(node):
     return tokens
 
 
-def visit_expression(node):
+def visit_expression(node, context):
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(relop_map[child.value])
         elif child.data == "simple_expression":
-            simple_expression_token = visit_simple_expression(child)
+            simple_expression_token = visit_simple_expression(child, context)
             tokens.extend(simple_expression_token)
         elif child.data == "expression":
-            expression_token = visit_expression(child)
+            expression_token = visit_expression(child, context)
             tokens.extend(expression_token)
         else:
             raise Exception("Unknown expression child data: {}".format(child.data))
     return tokens
 
 
-def visit_expression_list(node):
+def visit_expression_list(node, context):
     tokens = []
     first = True
     for child in node.children:
@@ -316,21 +315,21 @@ def visit_expression_list(node):
             first = False
         else:
             tokens.append(",")
-        expression_tokens = visit_expression(child)
+        expression_tokens = visit_expression(child, context)
         tokens.extend(expression_tokens)
     return tokens
 
 
-def visit_assign_statement(node):
+def visit_assign_statement(node, context):
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(assignop_map[child.value])
         elif child.data == "expression":
-            expression_tokens = visit_expression(child)
+            expression_tokens = visit_expression(child, context)
             tokens.extend(expression_tokens)
         elif child.data == "variable":
-            variable_tokens = visit_variable(child)
+            variable_tokens = visit_variable(child, context)
             tokens.extend(variable_tokens)
         else:
             raise Exception(
@@ -339,22 +338,22 @@ def visit_assign_statement(node):
     return tokens
 
 
-def visit_if_else_statement(node):
+def visit_if_else_statement(node, context):
     tokens = []
     for child in node.children:
         if child.data == "expression":
             tokens.append("if")
             tokens.append("(")
-            expression_tokens = visit_expression(child)
+            expression_tokens = visit_expression(child, context)
             tokens.extend(expression_tokens)
             tokens.append(")")
         elif child.data == "statement":
             tokens.append("{")
-            statement_tokens = visit_statement(child)
+            statement_tokens = visit_statement(child, context)
             tokens.extend(statement_tokens)
             tokens.append("}")
         elif child.data == "else_part":
-            else_part_tokens = visit_else_part(child)
+            else_part_tokens = visit_else_part(child, context)
             tokens.extend(else_part_tokens)
         else:
             raise Exception(
@@ -363,7 +362,7 @@ def visit_if_else_statement(node):
     return tokens
 
 
-def visit_else_part(node):
+def visit_else_part(node, context):
     tokens = []
     for child in node.children:
         if child.data == "empty":
@@ -371,7 +370,7 @@ def visit_else_part(node):
         elif child.data == "statement":
             tokens.append("else")
             tokens.append("{")
-            statement_tokens = visit_statement(child)
+            statement_tokens = visit_statement(child, context)
             tokens.extend(statement_tokens)
             tokens.append("}")
         else:
@@ -379,14 +378,14 @@ def visit_else_part(node):
     return tokens
 
 
-def visit_procedure_call(node):
+def visit_procedure_call(node, context):
     tokens = []
     for child in node.children:
         if child.data == "id":
-            tokens.append(visit_id(child))
+            tokens.append(visit_id(child, context))
         elif child.data == "expression_list":
             tokens.append("(")
-            expression_list_tokens = visit_expression_list(child)
+            expression_list_tokens = visit_expression_list(child, context)
             tokens.extend(expression_list_tokens)
             tokens.append(")")
         else:
@@ -394,28 +393,25 @@ def visit_procedure_call(node):
     return tokens
 
 
-def visit_statement_list(node):
+def visit_statement_list(node, context):
     tokens = []
     for child in node.children:
         assert child.data == "statement"
-        statement_tokens = visit_statement(child)
+        statement_tokens = visit_statement(child, context)
         tokens.extend(statement_tokens)
         tokens.append(";")
     return tokens
 
 
-def visit_compound_statement(node):
+def visit_compound_statement(node, context):
     tokens = []
-    tokens.append("{")
     assert node.children[0].data == "statement_list"
-    statement_list_tokens = visit_statement_list(node.children[0])
+    statement_list_tokens = visit_statement_list(node.children[0],context)
     tokens.extend(statement_list_tokens)
-
-    tokens.append("}")
     return tokens
 
 
-def visit_for_statement(node):
+def visit_for_statement(node, context):
     tokens = []
     id_tokens = []
     from_tokens = []
@@ -423,14 +419,14 @@ def visit_for_statement(node):
     statement_tokens = []
     for child in node.children:
         if child.data == "id":
-            tokens.append(visit_id(child))
+            tokens.append(visit_id(child, context))
         elif child.data == "expression":
             if id_tokens:
-                from_tokens = visit_expression(child)
+                from_tokens = visit_expression(child, context)
             else:
-                to_tokens = visit_expression(child)
+                to_tokens = visit_expression(child, context)
         elif child.data == "statement":
-            statement_tokens = visit_statement(child)
+            statement_tokens = visit_statement(child, context)
         else:
             raise Exception("Unknown for_statement child data: {}".format(child.data))
     tokens.append("for")
@@ -451,18 +447,18 @@ def visit_for_statement(node):
     return tokens
 
 
-def visit_while_statement(node):
+def visit_while_statement(node, context):
     tokens = []
     for child in node.children:
         if child.data == "expression":
             tokens.append("while")
             tokens.append("(")
-            expression_tokens = visit_expression(child)
+            expression_tokens = visit_expression(child, context)
             tokens.extend(expression_tokens)
             tokens.append(")")
         elif child.data == "statement":
             tokens.append("{")
-            statement_tokens = visit_statement(child)
+            statement_tokens = visit_statement(child, context)
             tokens.extend(statement_tokens)
             tokens.append("}")
         else:
@@ -470,26 +466,28 @@ def visit_while_statement(node):
     return tokens
 
 
-def visit_statement(node):
+def visit_statement(node, context):
     tokens = []
     for child in node.children:
         if child.data == "procedure_call":
-            procedure_call_tokens = visit_procedure_call(child)
+            procedure_call_tokens = visit_procedure_call(child, context)
             tokens.extend(procedure_call_tokens)
         elif child.data == "compound_statement":
-            compound_statement_tokens = visit_compound_statement(child)
+            compound_statement_tokens = visit_compound_statement(child, context)
+            tokens.append("{")
             tokens.extend(compound_statement_tokens)
+            tokens.append("}")
         elif child.data == "if_else_statement":
-            if_else_statement_tokens = visit_if_else_statement(child)
+            if_else_statement_tokens = visit_if_else_statement(child, context)
             tokens.extend(if_else_statement_tokens)
         elif child.data == "for_statement":
-            for_statement_tokens = visit_for_statement(child)
+            for_statement_tokens = visit_for_statement(child, context)
             tokens.extend(for_statement_tokens)
         elif child.data == "while_statement":
-            while_statement_tokens = visit_while_statement(child)
+            while_statement_tokens = visit_while_statement(child, context)
             tokens.extend(while_statement_tokens)
         elif child.data == "assign_statement":
-            assign_statement_tokens = visit_assign_statement(child)
+            assign_statement_tokens = visit_assign_statement(child, context)
             tokens.extend(assign_statement_tokens)
         elif child.data == "empty":
             return tokens
@@ -499,7 +497,7 @@ def visit_statement(node):
     return tokens
 
 
-def visit_const_value(node):
+def visit_const_value(node, context):
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
@@ -513,7 +511,7 @@ def visit_const_value(node):
                 raise Exception("Unknown const_value child type: {}".format(child.type))
 
         elif child.data == "num":
-            num_tokens = visit_num(child)
+            num_tokens = visit_num(child, context)
             tokens.extend(num_tokens)
         else:
             raise Exception("Unknown const_value child data: {}".format(child.data))
@@ -521,19 +519,19 @@ def visit_const_value(node):
     return tokens
 
 
-def visit_const_declaration(node):
+def visit_const_declaration(node, context):
     tokens = []
     for child in node.children:
         if child.data == "id":
             tokens.append("const")
             tokens.append("int")
-            tokens.append(visit_id(child))
+            tokens.append(visit_id(child, context))
         elif child.data == "const_value":
             tokens.append("=")
-            tokens.extend(visit_const_value(child))
+            tokens.extend(visit_const_value(child, context))
             tokens.append(";")
         elif child.data == "const_declaration":
-            tokens.extend(visit_const_declaration(child))
+            tokens.extend(visit_const_declaration(child, context))
         else:
             raise Exception(
                 "Unknown const_declaration child data: {}".format(child.data)
@@ -541,11 +539,11 @@ def visit_const_declaration(node):
     return tokens
 
 
-def visit_const_declarations(node):
+def visit_const_declarations(node, context):
     tokens = []
     for child in node.children:
         if child.data == "const_declaration":
-            tokens.extend(visit_const_declaration(child))
+            tokens.extend(visit_const_declaration(child, context))
         elif child.data == "empty":
             return tokens
         else:
@@ -555,17 +553,17 @@ def visit_const_declarations(node):
     return tokens
 
 
-def visit_var_declaration(node):
+def visit_var_declaration(node, context):
     tokens = []
     idlist = []
     id_type = None
     for child in node.children:
         if child.data == "idlist":
-            idlist = visit_idlist(child)
+            idlist = visit_idlist(child, context)
         elif child.data == "type":
-            id_type = visit_type(child)
+            id_type = visit_type(child, context)
         elif child.data == "var_declaration":
-            tokens.extend(visit_var_declaration(child))
+            tokens.extend(visit_var_declaration(child, context))
         else:
             raise Exception("Unknown var_declaration child data: {}".format(child.data))
 
@@ -584,11 +582,11 @@ def visit_var_declaration(node):
     return tokens
 
 
-def visit_var_declarations(node):
+def visit_var_declarations(node, context):
     tokens = []
     for child in node.children:
         if child.data == "var_declaration":
-            tokens.extend(visit_var_declaration(child))
+            tokens.extend(visit_var_declaration(child, context))
         elif child.data == "empty":
             return tokens
         else:
@@ -598,16 +596,16 @@ def visit_var_declarations(node):
     return tokens
 
 
-def visit_program_head(node):
+def visit_program_head(node, context):
     # tokens = []
     # for child in node.children:
     #     if child.data == "id":
-    #         id_tokens = visit_id(child)
+    #         id_tokens = visit_id(child,context)
     #         tokens.extend(id_tokens)
     #         tokens.append(";\n")
     #     elif child.data == "idlist":
     #         tokens.append("int ")
-    #         idlist_tokens = visit_idlist(child)
+    #         idlist_tokens = visit_idlist(child,context)
 
     #         tokens.append(";")
     #     else:
@@ -616,39 +614,48 @@ def visit_program_head(node):
     return tokens
 
 
-def visit_subprogram_body(node):
+def visit_subprogram_body(node, context):
     tokens = []
     for child in node.children:
         if child.data == "const_declarations":
-            tokens.extend(visit_const_declarations(child))
+            tokens.extend(visit_const_declarations(child, context))
         elif child.data == "var_declarations":
-            tokens.extend(visit_var_declarations(child))
+            tokens.extend(visit_var_declarations(child, context))
         elif child.data == "compound_statement":
-            tokens.extend(visit_compound_statement(child))
+            tokens.extend(visit_compound_statement(child, context))
         else:
             raise Exception("Unknown subprogram_body child data: {}".format(child.data))
     return tokens
 
 
-def visit_subprogram(node):
+def visit_subprogram(node, context):
     tokens = []
     for child in node.children:
         if child.data == "subprogram_head":
-            tokens.extend(visit_subprogram_head(child))
+            subprogram_head_tokens = visit_subprogram_head(child, context)
         elif child.data == "subprogram_body":
-            tokens.extend(visit_subprogram_body(child))
+            subprogram_body_tokens = visit_subprogram_body(child, context)
         else:
             raise Exception("Unknown subprogram child data: {}".format(child.data))
+    function_name = subprogram_head_tokens[1]
+    function_header = subprogram_head_tokens
+    function_tokens=["{"]
+    function_tokens.extend(subprogram_body_tokens)
+    function_tokens.append("return")
+    function_tokens.append(function_name)
+    function_tokens.append(";")
+    function_tokens.append("}")
+    context.register_func(function_name, function_header, function_tokens)
     return tokens
 
 
-def visit_subprogram_declarations(node):
+def visit_subprogram_declarations(node, context):
     tokens = []
     for child in node.children:
         if child.data == "subprogram":
-            tokens.extend(visit_subprogram(child))
+            tokens.extend(visit_subprogram(child, context))
         elif child.data == "subprogram_declarations":
-            tokens.extend(visit_subprogram_declarations(child))
+            tokens.extend(visit_subprogram_declarations(child, context))
         elif child.data == "empty":
             return tokens
         else:
@@ -658,29 +665,42 @@ def visit_subprogram_declarations(node):
     return tokens
 
 
-def visit_program_body(node):
+def visit_program_body(node, context):
     tokens = []
     for child in node.children:
         if child.data == "const_declarations":
-            tokens.extend(visit_const_declarations(child))
+            tokens.extend(visit_const_declarations(child, context))
         elif child.data == "var_declarations":
-            tokens.extend(visit_var_declarations(child))
+            tokens.extend(visit_var_declarations(child, context))
         elif child.data == "subprogram_declarations":
-            tokens.extend(visit_subprogram_declarations(child))
+            tokens.extend(visit_subprogram_declarations(child, context))
         elif child.data == "compound_statement":
-            tokens.extend(visit_compound_statement(child))
+            tokens.append("int main()")
+            tokens.append("{")
+            tokens.extend(visit_compound_statement(child, context))
+            tokens.append("}")
         else:
             raise Exception("Unknown program_body child data: {}".format(child.data))
     return tokens
 
 
-def visit_programstruct(node):
+def visit_programstruct(node, context):
     tokens = []
     for child in node.children:
         if child.data == "program_head":
-            tokens.extend(visit_program_head(child))
+            program_head_tokens=visit_program_head(child, context)
         elif child.data == "program_body":
-            tokens.extend(visit_program_body(child))
+           program_body_tokens=visit_program_body(child, context)
         else:
             raise Exception("Unknown programstruct child data: {}".format(child.data))
+    tokens.extend(program_head_tokens)
+    functions=context.get_funcs()
+    for function in functions:
+        tokens.extend(functions[function].header)
+        tokens.append(";")
+    tokens.extend(program_body_tokens)
+    for function in functions:
+        tokens.extend(functions[function].header)
+        tokens.extend(functions[function].tokens)
+    
     return tokens
