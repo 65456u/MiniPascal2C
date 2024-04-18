@@ -1,0 +1,44 @@
+- [ ] programstruct
+- [ ] program_head
+- [ ] idlist
+- [ ] program_body
+- [ ] const_declarations
+- [ ] const_declaration
+- [ ] const_value
+- [ ] var_declarations
+- [ ] var_declaration
+- [ ] type
+- [ ] basic_type
+- [ ] period
+- [ ] subprogram_declarations
+- [ ] subprogram
+- [ ] subprogram_head
+- [ ] formal_parameter
+- [ ] parameter_list
+- [ ] parameter
+- [ ] var_parameter
+- [ ] value_parameter
+- [ ] subprogram_body
+- [ ] compound_statement
+- [ ] statement_list
+- [ ] statement
+- [ ] assign_statement
+- [ ] if_else_statement
+- [ ] for_statement
+- [ ] while_statement
+- [ ] variable_list
+- [ ] variable
+- [ ] id_varpart
+- [ ] procedure_call
+- [ ] else_part
+- [ ] expression_list
+- [ ] expression
+- [ ] simple_expression
+- [ ] term
+- [ ] factor
+- [ ] id
+- [x] optional_fraction
+- [x] num
+- [x] empty
+- [ ] func_id
+

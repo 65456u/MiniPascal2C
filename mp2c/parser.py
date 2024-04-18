@@ -1,6 +1,7 @@
 from typing import Any
-import lark
-from lark import Lark, Transformer, v_args
+from .visitors import visit_programstruct
+from lark import Lark
+from .utils import format_code
 rules=r"""
 programstruct            : program_head ";" program_body "."
 program_head              : "program" id "(" idlist ")"
@@ -10,54 +11,55 @@ idlist                   : id
 program_body             : const_declarations var_declarations subprogram_declarations compound_statement
 const_declarations       : empty
                           | "const" const_declaration ";"
-const_declaration        : id "=" const_value
-                          | const_declaration ";" id "=" const_value
-const_value              : "+" num
-                          | "-" num
+const_declaration        : id "=" const_value (";" id "=" const_value)*
+const_value              : PLUS num
+                          | MINUS num
                           | num
                           | "'" LETTER "'"
+PLUS                     : "+"
+MINUS                    : "-"        
 var_declarations         : empty
                           | "var" var_declaration ";"
 var_declaration          : idlist ":" type
                           | var_declaration ";" idlist ":" type
 type                     : basic_type
                           | "array" "[" period "]" "of" basic_type
-basic_type               : "integer"
-                          | "real"
-                          | "boolean"
-                          | "char"
-period                   : digits ".." digits
-                          | period "," digits ".." digits
+basic_type               : INTEGER
+                          | REAL
+                          | BOOLEAN
+                          | CHAR
+period                   : DIGITS ".." DIGITS
+                          | period "," DIGITS ".." DIGITS
 
 subprogram_declarations  : empty
                           | subprogram_declarations subprogram ";"
 subprogram                : subprogram_head ";" subprogram_body
 subprogram_head           : "procedure" id formal_parameter
                           | "function" id formal_parameter ":" basic_type
-formal_parameter         : empty
-                          | "(" parameter_list ")"
-parameter_list           : parameter
-                          | parameter_list ";" parameter
+formal_parameter          : "(" parameter_list ")"
+parameter_list           : empty
+                         | parameter (";" parameter)*
 parameter                : var_parameter
                           | value_parameter
 var_parameter            : "var" value_parameter
 value_parameter          : idlist ":" basic_type
 subprogram_body          : const_declarations var_declarations compound_statement
 compound_statement       : "begin" statement_list "end"
-statement_list           : statement
-                          | statement_list ";" statement
+statement_list           : statement (";" statement)*
 statement                : empty
-                          | variable assignop expression
-                          | func_id assignop expression
+                        | assign_statement
                           | procedure_call
                           | compound_statement
-                          | "if" expression "then" statement else_part
-                          | "for" id assignop expression "to" expression "do" statement
-                          | "while" expression "do" statement
-                          | "read\(" variable_list ")"
-                          | "write\(" expression_list ")"
-variable_list            : variable
-                          | variable_list "," variable
+                          | if_else_statement
+                          | for_statement
+                          | while_statement
+
+assign_statement        : variable ASSIGNOP expression
+                        | func_id ASSIGNOP expression
+if_else_statement        : "if" expression "then" statement else_part
+for_statement            : "for" id ASSIGNOP expression "to" expression "do" statement
+while_statement         : "while" expression "do" statement
+variable_list            : variable ("," variable)*
 variable                 : id id_varpart
 id_varpart               : empty
                           | "[" expression_list "]"
@@ -65,45 +67,49 @@ procedure_call           : id
                           | id "(" expression_list ")"
 else_part                : empty
                           | "else" statement
-expression_list          : expression
-                          | expression_list "," expression
+expression_list          : expression ("," expression)*
 expression               : simple_expression
-                          | simple_expression relop simple_expression
+                          | simple_expression RELOP simple_expression
 simple_expression        : term
-                          | simple_expression addop term
+                          | simple_expression ADDOP term
 term                     : factor
-                          | term mulop factor
+                          | term MULOP factor
 factor                   : num
                           | variable
                           | "(" expression ")"
-                          | "not" factor
-                          | uminus factor
+                          | NOT factor
+                          | UMINUS factor
                           | func_id "(" expression_list ")"
-
-digits                   : DIGIT+
+NOT                      : "not"
+DIGITS                   : DIGIT+
 id                     : IDENTIFIER_TOKEN
-optional_fraction     : empty
-                        | "." digits
-num                   : digits optional_fraction
-relop                 : "="
+optional_fraction     : "." DIGITS
+num                   : DIGITS optional_fraction?
+RELOP                 : "="
                         | "<>"
                         | "<"
                         | "<="
                         | ">"
                         | ">="
-addop                 : "+"
+ADDOP                 : "+"
                         | "-"
                         | "or"
-mulop                 : "*"
+MULOP                 : "*"
                         |"/"
                         | "div"
                         | "mod"
                         | "and"
-assignop              : ":="
+ASSIGNOP              : ":="
 empty                 : WS*
 func_id               : id
-uminus                : "-"
+UMINUS                : "-"
+
 IDENTIFIER_TOKEN : /[a-zA-Z_][a-zA-Z0-9_]*/
+
+INTEGER                  : "integer"
+REAL                     : "real"
+BOOLEAN                  : "boolean"
+CHAR                     : "char"
 %import common.DIGIT
 %import common.LETTER
 %import common.WS
@@ -114,4 +120,9 @@ class MP2CParser():
         self.parser = Lark(rules, start='programstruct')
 
     def __call__(self, code) -> Any:
-        return self.parser.parse(code)
+        parser=self.parser
+        tree=parser.parse(code)
+        tokens= visit_programstruct(tree)
+        result_string=" ".join(tokens)
+        result_string=format_code(result_string)
+        return tree, tokens, result_string

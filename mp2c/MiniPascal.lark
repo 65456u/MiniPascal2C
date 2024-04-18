@@ -6,12 +6,13 @@ idlist                   : id
 program_body             : const_declarations var_declarations subprogram_declarations compound_statement
 const_declarations       : empty
                           | "const" const_declaration ";"
-const_declaration        : id "=" const_value
-                          | const_declaration ";" id "=" const_value
-const_value              : "+" num
-                          | "-" num
+const_declaration        : id "=" const_value (";" id "=" const_value)*
+const_value              : PLUS num
+                          | MINUS num
                           | num
                           | "'" LETTER "'"
+PLUS                     : "+"
+MINUS                    : "-"        
 var_declarations         : empty
                           | "var" var_declaration ";"
 var_declaration          : idlist ":" type
@@ -39,19 +40,20 @@ var_parameter            : "var" value_parameter
 value_parameter          : idlist ":" basic_type
 subprogram_body          : const_declarations var_declarations compound_statement
 compound_statement       : "begin" statement_list "end"
-statement_list           : statement
-                          | statement_list ";" statement
+statement_list           : statement (";" statement)*
 statement                : empty
-                          | variable ASSIGNOP expression
-                          | func_id ASSIGNOP expression
+                          | assign_statement
                           | procedure_call
                           | compound_statement
-                          | "if" expression "then" statement else_part
-                          | "for" id ASSIGNOP expression "to" expression "do" statement
-                          | "while" expression "do" statement
-                          | "read\(" variable_list ")"
-                          | "write\(" expression_list ")"
-if_else_statement        : "if" expression "then" statement "else" else_part
+                          | if_else_statement
+                          | for_statement
+                          | while_statement
+
+assign_statement        : variable ASSIGNOP expression
+                        | func_id ASSIGNOP expression
+if_else_statement        : "if" expression "then" statement else_part
+for_statement            : "for" id ASSIGNOP expression "to" expression "do" statement
+while_statement         : "while" expression "do" statement
 variable_list            : variable ("," variable)*
 variable                 : id id_varpart
 id_varpart               : empty
