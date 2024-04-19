@@ -1,5 +1,5 @@
 import subprocess
-
+import re
 type_map = {"integer": "int", "real": "float", "boolean": "bool", "char": "char"}
 relop_map = {"=": "==", "<>": "!=", "<": "<", "<=": "<=", ">": ">", ">=": ">="}
 addop_map = {"+": "+", "-": "-", "or": "||"}
@@ -25,3 +25,12 @@ def format_code(code: str) -> str:
     formatted_code, _ = process.communicate(code)
 
     return formatted_code
+
+def preprocess(code: str) -> str:
+    # 去除形如 {...} 的注释
+    code_without_comments = re.sub(r"\{.*?\}", "", code, flags=re.DOTALL)
+
+    # 将代码转换成小写
+    code_without_comments = code_without_comments.lower()
+
+    return code_without_comments
