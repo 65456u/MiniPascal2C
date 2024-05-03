@@ -81,7 +81,8 @@ factor                   : num
                           | "(" expression ")"
                           | NOT factor
                           | UMINUS factor
-                          | func_id "(" expression_list ")"
+                          | function_call
+function_call            : func_id "(" expression_list ")"
 NOT                      : "not"
 DIGITS                   : DIGIT+
 id                     : IDENTIFIER_TOKEN

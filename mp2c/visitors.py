@@ -229,6 +229,22 @@ def visit_variable_list(node, context, func_name):
     return tokens
 
 
+def visit_function_call(node, context, func_name):
+    tokens = []
+    for child in node.children:
+        if child.data == "func_id":
+            tokens.extend(visit_func_id(child, context, None))
+        elif child.data == "expression_list":
+            tokens.append("(")
+            expression_list_tokens = ""
+            expression_list_tokens = visit_expression_list(child, context, func_name)
+            tokens.extend(expression_list_tokens)
+            tokens.append(")")
+        else:
+            raise Exception("Unknown procedure_call child data: {}".format(child.data))
+    return tokens
+
+
 def visit_factor(node, context, func_name):
     tokens = []
     for child in node.children:
@@ -264,6 +280,9 @@ def visit_factor(node, context, func_name):
         elif child.data == "variable":
             variable_token = visit_variable(child, context, func_name)
             tokens.extend(variable_token)
+        elif child.data == "function_call":
+            function_call_token = visit_function_call(child, context, func_name)
+            tokens.extend(function_call_token)
         else:
             raise Exception("Unknown factor child data: {}".format(child.data))
     return tokens
