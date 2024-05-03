@@ -412,12 +412,67 @@ def visit_else_part(node, context, func_name):
 def construct_read_params(node, context, func_name):
     # Todo : 在context.symbol_table中查询expression_list中的每个id的类型，并组织出正确的scanf参数
     tokens = []
+    ids= []
+    types= []
+    for child in node.children:
+        if "expression":
+            expression_tokens = visit_expression(child, context, func_name)
+            assert len(expression_tokens) == 1
+            id= expression_tokens[0]
+            ids.append(id)
+            value=context.get_value(id)
+            types.append(value.type)
+        else:
+            raise Exception("Unknown read_params child data: {}".format(child.data))
+    format_= '"'
+    for id_type in types:
+        if id_type == "int":
+            format_+= r"%d"
+        elif id_type == "float":
+            format_+= r"%f"
+        elif id_type == "char":
+            format_+= r"%c"
+        else:
+            raise Exception("Unknown type: {}".format(id_type))
+    format_+= '"'
+    tokens.append(format_)
+    for id in ids:
+        tokens.append(",") 
+        tokens.append("&")
+        tokens.append(id)
     return tokens
 
 
 def construct_write_params(node, context, func_name):
     # Todo : 在context.symbol_table中查询expression_list中的每个id的类型，并组织出正确的printf参数
     tokens = []
+    return tokens
+    expressions= []
+    types= []
+    for child in node.children:
+        if "expression":
+            expression_tokens = visit_expression(child, context, func_name)
+            print(expression_tokens)
+            expressions.append(expression_tokens)
+            value=context.get_value(id)
+            types.append(value.type)
+        else:
+            raise Exception("Unknown write_params child data: {}".format(child.data))
+    format_= '"'
+    for id_type in types:
+        if id_type == "int":
+            format_+= r"%d"
+        elif id_type == "float":
+            format_+= r"%f"
+        elif id_type == "char":
+            format_+= r"%c"
+        else:
+            raise Exception("Unknown type: {}".format(id_type))
+    format_+= '"'
+    tokens.append(format_)
+    for id in expressions:
+        tokens.append(",")
+        tokens.append(id)
     return tokens
 
 

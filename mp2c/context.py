@@ -49,6 +49,9 @@ class Context:
             raise Exception("try to get arrays in no scope ")
         return self.symbol_table[self.current_scope_index]["array"]
     
+    def get_value(self, name):
+        return self.get_values().get(name)
+    
     # def cname_to_type(self, name):
     #     res = int
     #     if name == "float" :

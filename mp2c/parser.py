@@ -49,7 +49,7 @@ subprogram_body          : const_declarations var_declarations compound_statemen
 compound_statement       : "begin" statement_list "end"
 statement_list           : statement (";" statement)*
 statement                : empty
-                        | assign_statement
+                          | assign_statement
                           | procedure_call
                           | compound_statement
                           | if_else_statement
