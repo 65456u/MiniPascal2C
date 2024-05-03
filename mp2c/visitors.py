@@ -1,6 +1,6 @@
 import lark
 from .utils import *
-from .context import Context, MiniPascalFunction
+from .context import Context
 
 
 def visit_empty(node, context):
@@ -66,7 +66,7 @@ def visit_type(node, context):
 
 def visit_id(node, context, func_name):
     name = node.children[0].value
-    if(name == func_name):
+    if name == func_name:
         return "_" + name
     else:
         return node.children[0].value
@@ -91,7 +91,8 @@ def visit_value_parameter(node, context):
     for child in node.children:
         if child.data == "idlist":
             # 函数形参不需要考虑名称修正
-            ids = visit_idlist(child, context, None)
+            # ids = visit_idlist(child, context, None)
+            ids = visit_idlist(child, context)
         elif child.data == "basic_type":
             type = visit_basic_type(child, context)
         else:
@@ -149,7 +150,7 @@ def visit_parameter_list(node, context):
 def visit_formal_parameter(node, context):
     tokens = []
     tokens.append("(")
-    parameter_list = visit_parameter_list(node.children[0],context)
+    parameter_list = visit_parameter_list(node.children[0], context)
     tokens.extend(parameter_list)
     tokens.append(")")
     return tokens
@@ -253,7 +254,7 @@ def visit_factor(node, context, func_name):
             factor_token = visit_factor(child, context, func_name)
             tokens.extend(factor_token)
         elif child.data == "func_id":
-            func_id_token = visit_func_id(child, context)
+            func_id_token = visit_func_id(child, context, func_name)
             tokens.extend(func_id_token)
         elif child.data == "expression_list":
             tokens.append("(")
@@ -268,16 +269,16 @@ def visit_factor(node, context, func_name):
     return tokens
 
 
-def visit_term(node, context):
+def visit_term(node, context, func_name):
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(mulop_map[child.value])
         elif child.data == "factor":
-            factor_token = visit_factor(child, context)
+            factor_token = visit_factor(child, context, func_name)
             tokens.extend(factor_token)
         elif child.data == "term":
-            term_token = visit_term(child, context)
+            term_token = visit_term(child, context, func_name)
             tokens.extend(term_token)
         else:
             raise Exception("Unknown term child data: {}".format(child.data))
@@ -290,7 +291,7 @@ def visit_simple_expression(node, context, func_name):
         if isinstance(child, lark.lexer.Token):
             tokens.append(addop_map[child.value])
         elif child.data == "term":
-            term_token = visit_term(child, context)
+            term_token = visit_term(child, context, func_name)
             tokens.extend(term_token)
         elif child.data == "simple_expression":
             simple_expression_token = visit_simple_expression(child, context, func_name)
@@ -388,15 +389,18 @@ def visit_else_part(node, context, func_name):
             raise Exception("Unknown else_part child data: {}".format(child.data))
     return tokens
 
+
 def construct_read_params(node, context, func_name):
     # Todo : 在context.symbol_table中查询expression_list中的每个id的类型，并组织出正确的scanf参数
     tokens = []
     return tokens
 
+
 def construct_write_params(node, context, func_name):
     # Todo : 在context.symbol_table中查询expression_list中的每个id的类型，并组织出正确的printf参数
     tokens = []
-    return tokens  
+    return tokens
+
 
 def visit_procedure_call(node, context, func_name):
     tokens = []
@@ -417,11 +421,17 @@ def visit_procedure_call(node, context, func_name):
             tokens.append("(")
             expression_list_tokens = ""
             if isRead:
-                expression_list_tokens = construct_read_params(child, context, func_name)
+                expression_list_tokens = construct_read_params(
+                    child, context, func_name
+                )
             elif isWrite:
-                expression_list_tokens = construct_write_params(child, context, func_name)
+                expression_list_tokens = construct_write_params(
+                    child, context, func_name
+                )
             else:
-                expression_list_tokens = visit_expression_list(child, context, func_name)
+                expression_list_tokens = visit_expression_list(
+                    child, context, func_name
+                )
             tokens.extend(expression_list_tokens)
             tokens.append(")")
         else:
@@ -442,7 +452,7 @@ def visit_statement_list(node, context, func_name):
 def visit_compound_statement(node, context, func_name):
     tokens = []
     assert node.children[0].data == "statement_list"
-    statement_list_tokens = visit_statement_list(node.children[0],context, func_name)
+    statement_list_tokens = visit_statement_list(node.children[0], context, func_name)
     tokens.extend(statement_list_tokens)
     return tokens
 
@@ -509,12 +519,16 @@ def visit_statement(node, context, func_name):
             procedure_call_tokens = visit_procedure_call(child, context, func_name)
             tokens.extend(procedure_call_tokens)
         elif child.data == "compound_statement":
-            compound_statement_tokens = visit_compound_statement(child, context, func_name)
+            compound_statement_tokens = visit_compound_statement(
+                child, context, func_name
+            )
             tokens.append("{")
             tokens.extend(compound_statement_tokens)
             tokens.append("}")
         elif child.data == "if_else_statement":
-            if_else_statement_tokens = visit_if_else_statement(child, context, func_name)
+            if_else_statement_tokens = visit_if_else_statement(
+                child, context, func_name
+            )
             tokens.extend(if_else_statement_tokens)
         elif child.data == "for_statement":
             for_statement_tokens = visit_for_statement(child, context, func_name)
@@ -567,7 +581,9 @@ def visit_const_declaration(node, context):
             # 定义const_declaration时不进行id修正
             id = visit_id(child, context, None)
         elif child.data == "const_value":
-            res = visit_const_value(child, context) # [123.456, "float"] 或 ["test", "char*"] ...
+            res = visit_const_value(
+                child, context
+            )  # [123.456, "float"] 或 ["test", "char*"] ...
             tokens.append(res[1])
             tokens.append(id)
             tokens.append("=")
@@ -616,7 +632,7 @@ def visit_var_declaration(node, context):
     for id in idlist:
         tokens.append(id_type["basic_type"])
         tokens.append(id)
-        
+
         if id_type["is_array"]:
             for period in id_type["period"]:
                 tokens.append("[")
@@ -660,7 +676,7 @@ def visit_program_head(node, context):
     #         tokens.append(";")
     #     else:
     #         raise Exception("Unknown program_head child data: {}".format(child.data))
-    tokens = ["#include \"mp2c.h\""]
+    tokens = ['#include "mp2c.h"']
     return tokens
 
 
@@ -690,13 +706,15 @@ def visit_subprogram(node, context):
         if child.data == "subprogram_head":
             subprogram_head_tokens = visit_subprogram_head(child, context)
         elif child.data == "subprogram_body":
-            subprogram_body_tokens = visit_subprogram_body(child, context, subprogram_head_tokens)
+            subprogram_body_tokens = visit_subprogram_body(
+                child, context, subprogram_head_tokens
+            )
         else:
             raise Exception("Unknown subprogram child data: {}".format(child.data))
     ret_type = subprogram_head_tokens[0]
     function_name = subprogram_head_tokens[1]
     function_header = subprogram_head_tokens
-    function_tokens=["{"]
+    function_tokens = ["{"]
     function_tokens.append(ret_type)
     function_tokens.append("_" + function_name)
     function_tokens.append(";")
@@ -728,8 +746,6 @@ def visit_subprogram_declarations(node, context):
 
 
 def visit_program_body(node, context):
-    # 进入全局作用域
-    context.enter_scope()
     tokens = []
     for child in node.children:
         if child.data == "const_declarations":
@@ -745,22 +761,22 @@ def visit_program_body(node, context):
             tokens.append("}")
         else:
             raise Exception("Unknown program_body child data: {}".format(child.data))
-    # 退出全局作用域
-    context.exit_scope()
     return tokens
 
 
 def visit_programstruct(node, context):
+    # 进入全局作用域
+    context.enter_scope()
     tokens = []
     for child in node.children:
         if child.data == "program_head":
-            program_head_tokens=visit_program_head(child, context)
+            program_head_tokens = visit_program_head(child, context)
         elif child.data == "program_body":
-           program_body_tokens=visit_program_body(child, context)
+            program_body_tokens = visit_program_body(child, context)
         else:
             raise Exception("Unknown programstruct child data: {}".format(child.data))
     tokens.extend(program_head_tokens)
-    functions=context.get_funcs()
+    functions = context.get_funcs()
     for function in functions:
         tokens.extend(functions[function].header)
         tokens.append(";")
@@ -768,5 +784,6 @@ def visit_programstruct(node, context):
     for function in functions:
         tokens.extend(functions[function].header)
         tokens.extend(functions[function].tokens)
-    
+    context.exit_scope()
+
     return tokens
