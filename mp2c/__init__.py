@@ -1,6 +1,6 @@
 from .utils import *
 from .visitors import *
-from .parser import MP2CParser
+from .converter import Converter
 from .context import *
 
 __all___ = [
