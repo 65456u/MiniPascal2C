@@ -110,7 +110,9 @@ def visit_var_parameter(node: lark.tree.Tree, context: Context):
             first = False
         else:
             tokens.append(",")
-        tokens.append(value_parameter["type"])
+        id_type=value_parameter["type"]
+        context.register_value(id, id_type, True)
+        tokens.append(id_type)
         tokens.append(id)
     return tokens
 
@@ -128,7 +130,9 @@ def visit_parameter(node: lark.tree.Tree, context: Context):
                     first = False
                 else:
                     tokens.append(",")
-                tokens.append(value_parameter["type"])
+                id_type=value_parameter["type"]
+                context.register_value(id, id_type, True)
+                tokens.append(id_type)
                 tokens.append(id)
         else:
             raise Exception("Unknown parameter child data: {}".format(child.data))
@@ -178,6 +182,7 @@ def visit_subprogram_head(node: lark.tree.Tree, context: Context):
         tokens.append("void")
     tokens.append(id)
     tokens.extend(formal_parameter)
+    context.register_func(id, tokens, None)
     return tokens
 
 
@@ -185,8 +190,11 @@ def visit_func_id(node, context, func_name):
     tokens = []
     for child in node.children:
         assert child.data == "id"
-        id_tokens = visit_id(child, context, func_name)
-        tokens.append(id_tokens)
+        for grandchild in child.children:
+            if grandchild.type == "IDENTIFIER_TOKEN":
+                tokens.append(grandchild.value)
+            else:
+                raise Exception("Unknown func_id grandchild type: {}".format(grandchild.type))
     return tokens
 
 
@@ -207,15 +215,28 @@ def visit_id_varpart(node, context, func_name):
 
 def visit_variable(node, context, func_name):
     tokens = []
+    isArray=False
+    id_varpart = None
+    variable_type=None
     for child in node.children:
         if child.data == "id":
-            tokens.append(visit_id(child, context, func_name))
+            id_token=visit_id(child, context, func_name)
         elif child.data == "id_varpart":
             id_varpart = visit_id_varpart(child, context, func_name)
-            tokens.extend(id_varpart)
+            if len(id_varpart)>0:
+                isArray=True
         else:
             raise Exception("Unknown variable child data: {}".format(child.data))
-    return tokens
+    values=context.get_values()
+    if isArray:
+        array=context.get_array(id_token)
+        variable_type=array.type
+    else:
+        value=context.get_value(id_token)
+        variable_type=value.type
+    tokens.append(id_token)
+    tokens.extend(id_varpart)
+    return tokens, variable_type
 
 
 def visit_variable_list(node, context, func_name):
@@ -226,15 +247,23 @@ def visit_variable_list(node, context, func_name):
             first = False
         else:
             tokens.append(",")
-        tokens.extend(visit_variable(child, context, func_name))
+        variable_token, variable_type = visit_variable(child, context, func_name)
+        tokens.extend(variable_token)
     return tokens
 
 
 def visit_function_call(node, context, func_name):
+    print("func name",func_name)
     tokens = []
+    function_type = None
     for child in node.children:
         if child.data == "func_id":
-            tokens.extend(visit_func_id(child, context, None))
+            function_token=visit_func_id(child, context, func_name)
+            function_name=function_token[0]
+            functions=context.get_funcs()
+            function=context.get_func(function_name)
+            function_type=function.header[0]
+            tokens.extend(function_token)
         elif child.data == "expression_list":
             tokens.append("(")
             expression_list_tokens = ""
@@ -243,11 +272,13 @@ def visit_function_call(node, context, func_name):
             tokens.append(")")
         else:
             raise Exception("Unknown procedure_call child data: {}".format(child.data))
-    return tokens
+    
+    return tokens, function_type
 
 
 def visit_factor(node, context, func_name):
     tokens = []
+    factor_type=None
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             token_type = child.type
@@ -257,86 +288,90 @@ def visit_factor(node, context, func_name):
             elif token_type == "UMINUS":
                 tokens.append(uminus_map[token_value])
         elif child.data == "num":
-            num_token = visit_num(child, context)[0]
+            num_token, factor_type = visit_num(child, context)
             tokens.extend(num_token)
-        elif child.data == "id":
-            id_token = visit_id(child, context, func_name)
-            tokens.extend(id_token)
         elif child.data == "expression":
             tokens.append("(")
-            expression_token = visit_expression(child, context, func_name)
+            expression_token, expression_type = visit_expression(child, context, func_name)
             tokens.extend(expression_token)
             tokens.append(")")
+            factor_type = expression_type
         elif child.data == "factor":
-            factor_token = visit_factor(child, context, func_name)
+            factor_token, factor_type = visit_factor(child, context, func_name)
             tokens.extend(factor_token)
-        elif child.data == "func_id":
-            func_id_token = visit_func_id(child, context, func_name)
-            tokens.extend(func_id_token)
-        elif child.data == "expression_list":
-            tokens.append("(")
-            expression_list_token = visit_expression_list(child, context, func_name)
-            tokens.extend(expression_list_token)
-            tokens.append(")")
         elif child.data == "variable":
-            variable_token = visit_variable(child, context, func_name)
+            variable_token, factor_type = visit_variable(child, context, func_name)
             tokens.extend(variable_token)
         elif child.data == "function_call":
-            function_call_token = visit_function_call(child, context, func_name)
+            function_call_token, factor_type = visit_function_call(child, context, func_name)
             tokens.extend(function_call_token)
         else:
             raise Exception("Unknown factor child data: {}".format(child.data))
-    return tokens
+    # test if all members of tokens are string
+    # for token in tokens:
+    #     if not isinstance(token, str):
+    #         print(tokens)
+    #         print(node.pretty())
+    #         raise Exception("Token is not string: {}".format(token))
+    return tokens,factor_type
 
 
 def visit_term(node, context, func_name):
+    term_type = None
     tokens = []
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(mulop_map[child.value])
         elif child.data == "factor":
-            factor_token = visit_factor(child, context, func_name)
+            factor_token, factor_type = visit_factor(child, context, func_name)
             tokens.extend(factor_token)
+            term_type = factor_type
         elif child.data == "term":
-            term_token = visit_term(child, context, func_name)
+            term_token, term_type = visit_term(child, context, func_name)
             tokens.extend(term_token)
         else:
             raise Exception("Unknown term child data: {}".format(child.data))
-    return tokens
+    return tokens, term_type
 
 
 def visit_simple_expression(node, context, func_name):
     tokens = []
+    simple_expression_type=None
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(addop_map[child.value])
         elif child.data == "term":
-            term_token = visit_term(child, context, func_name)
+            term_token, term_type = visit_term(child, context, func_name)
             tokens.extend(term_token)
+            simple_expression_type = term_type
         elif child.data == "simple_expression":
-            simple_expression_token = visit_simple_expression(child, context, func_name)
+            simple_expression_token, simple_expression_type = visit_simple_expression(child, context, func_name)
             tokens.extend(simple_expression_token)
         else:
             raise Exception(
                 "Unknown simple_expression child data: {}".format(child.data)
             )
-    return tokens
+    return tokens, simple_expression_type
 
 
 def visit_expression(node, context, func_name):
     tokens = []
+    expression_type = None
+    isBool = False
     for child in node.children:
         if isinstance(child, lark.lexer.Token):
             tokens.append(relop_map[child.value])
+            isBool = True
         elif child.data == "simple_expression":
-            simple_expression_token = visit_simple_expression(child, context, func_name)
+            simple_expression_token , simple_expression_type = visit_simple_expression(child, context, func_name)
             tokens.extend(simple_expression_token)
-        elif child.data == "expression":
-            expression_token = visit_expression(child, context, func_name)
-            tokens.extend(expression_token)
         else:
             raise Exception("Unknown expression child data: {}".format(child.data))
-    return tokens
+    if isBool:
+        expression_type = "bool"
+    else:
+        expression_type = simple_expression_type
+    return tokens, expression_type
 
 
 def visit_expression_list(node, context, func_name):
@@ -347,8 +382,14 @@ def visit_expression_list(node, context, func_name):
             first = False
         else:
             tokens.append(",")
-        expression_tokens = visit_expression(child, context, func_name)
+        expression_tokens,_ = visit_expression(child, context, func_name)
         tokens.extend(expression_tokens)
+    # test if all members of tokens are string
+    for token in tokens:
+        if not isinstance(token, str):
+            print(tokens)
+            print(node.pretty())
+            raise Exception("Token is not string: {}".format(token))
     return tokens
 
 
@@ -358,10 +399,10 @@ def visit_assign_statement(node, context, func_name):
         if isinstance(child, lark.lexer.Token):
             tokens.append(assignop_map[child.value])
         elif child.data == "expression":
-            expression_tokens = visit_expression(child, context, func_name)
+            expression_tokens, _ = visit_expression(child, context, func_name)
             tokens.extend(expression_tokens)
         elif child.data == "variable":
-            variable_tokens = visit_variable(child, context, func_name)
+            variable_tokens, variable_type = visit_variable(child, context, func_name)
             tokens.extend(variable_tokens)
         else:
             raise Exception(
@@ -376,7 +417,7 @@ def visit_if_else_statement(node, context, func_name):
         if child.data == "expression":
             tokens.append("if")
             tokens.append("(")
-            expression_tokens = visit_expression(child, context, func_name)
+            expression_tokens , expression_type = visit_expression(child, context, func_name)
             tokens.extend(expression_tokens)
             tokens.append(")")
         elif child.data == "statement":
@@ -417,7 +458,8 @@ def construct_read_params(node, context, func_name):
     types = []
     for child in node.children:
         if "expression":
-            expression_tokens = visit_expression(child, context, func_name)
+            expression_tokens , expression_type= visit_expression(child, context, func_name)
+            print(expression_tokens)
             assert len(expression_tokens) == 1
             id = expression_tokens[0]
             ids.append(id)
@@ -447,16 +489,13 @@ def construct_read_params(node, context, func_name):
 def construct_write_params(node, context, func_name):
     # Todo : 在context.symbol_table中查询expression_list中的每个id的类型，并组织出正确的printf参数
     tokens = []
-    return tokens
     expressions = []
     types = []
     for child in node.children:
         if "expression":
-            expression_tokens = visit_expression(child, context, func_name)
-            print(expression_tokens)
-            expressions.append(expression_tokens)
-            value = context.get_value(id)
-            types.append(value.type)
+            expression_token, expression_type = visit_expression(child, context, func_name)
+            expressions.append(expression_token)
+            types.append(expression_type)
         else:
             raise Exception("Unknown write_params child data: {}".format(child.data))
     format_ = '"'
@@ -471,9 +510,9 @@ def construct_write_params(node, context, func_name):
             raise Exception("Unknown type: {}".format(id_type))
     format_ += '"'
     tokens.append(format_)
-    for id in expressions:
+    for expression in expressions:
         tokens.append(",")
-        tokens.append(id)
+        tokens.extend(expression)
     return tokens
 
 
@@ -618,6 +657,8 @@ def visit_statement(node, context, func_name):
             return tokens
         else:
             raise Exception("Unknown statement child data: {}".format(child.data))
+    if len(tokens) > 0 and tokens[-1] != ";":
+        tokens.append(";")
     return tokens
 
 
@@ -756,7 +797,6 @@ def visit_program_head(node: lark.tree.Tree, context: Context):
 
 
 def visit_subprogram_body(node, context, subprogram_head_tokens):
-    context.enter_scope()
     func_name = subprogram_head_tokens[1]
     ret_type = subprogram_head_tokens[0]
     context.register_value("_" + func_name, ret_type, True)
@@ -771,11 +811,11 @@ def visit_subprogram_body(node, context, subprogram_head_tokens):
             tokens.extend(visit_compound_statement(child, context, func_name))
         else:
             raise Exception("Unknown subprogram_body child data: {}".format(child.data))
-    context.exit_scope()
     return tokens
 
 
 def visit_subprogram(node: lark.tree.Tree, context: Context):
+    context.enter_scope()
     tokens = []
     for child in node.children:
         if child.data == "subprogram_head":
@@ -800,7 +840,13 @@ def visit_subprogram(node: lark.tree.Tree, context: Context):
     function_tokens.append("_" + function_name)
     function_tokens.append(";")
     function_tokens.append("}")
-    context.register_func(function_name, function_header, function_tokens)
+    print(context.current_scope_index)
+    print("reg")
+    print(function_header)
+    print(function_tokens)
+    context.declare_func(function_name, function_tokens)
+    print(context.get_funcs())
+    context.exit_scope()
     return tokens
 
 
@@ -852,6 +898,8 @@ def visit_programstruct(node: lark.tree.Tree, context: Context):
             raise Exception("Unknown programstruct child data: {}".format(child.data))
     tokens.extend(program_head_tokens)
     functions = context.get_funcs()
+    print("functions")
+    print(functions)
     for function in functions:
         tokens.extend(functions[function].header)
         tokens.append(";")

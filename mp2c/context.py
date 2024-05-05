@@ -16,9 +16,13 @@ class Context:
     def register_func(self, name, header, tokens):
         if self.current_scope_index < 0 or self.current_scope_index >= len(self.symbol_table) :
             raise Exception("try to register function {} in no scope ".format(name))
-        functions_in_top_smbltab = self.symbol_table[self.current_scope_index]["subprogram"]
+        functions_in_top_smbltab = self.symbol_table[self.current_scope_index-1]["subprogram"]
         functions_in_top_smbltab[name] = FunctionSymbol(name,header,tokens)
 
+    def declare_func(self, name, tokens):
+        self.symbol_table[self.current_scope_index-1]["subprogram"][name].tokens = tokens
+        
+    
     def register_value(self, name, type, mutable, value = None):
         if self.current_scope_index < 0 or self.current_scope_index >= len(self.symbol_table):
             raise Exception("try to register value {} in no scope ".format(name))
@@ -52,6 +56,15 @@ class Context:
     def get_value(self, name):
         return self.get_values().get(name)
     
+    def get_array(self, name):
+        return self.get_arrays().get(name)
+    
+    def get_func(self, name):
+        func= self.get_funcs().get(name)
+        if func is None and self.current_scope_index > 0:
+            func = self.symbol_table[0]["subprogram"].get(name)
+        return func
+    
     # def cname_to_type(self, name):
     #     res = int
     #     if name == "float" :
@@ -68,6 +81,9 @@ class FunctionSymbol:
         self.name = name
         self.header = header
         self.tokens = tokens
+    
+    def __repr__(self) -> str:
+        return self.name
 
 class ValueSymbol:
     def __init__(self, name, type, mutable, value):
@@ -75,6 +91,13 @@ class ValueSymbol:
         self.type = type
         self.mutable = mutable
         self.value = value
+        
+    def __repr__(self) -> str:
+        description = "Value: " + self.name + "\n"
+        description += "Type: " + self.type + "\n"
+        description += "Mutable: " + str(self.mutable) + "\n"
+        description += "Value: " + str(self.value) + "\n"
+        return description
 
 class ArraySymbol:
     def __init__(self, name, type, dimensions):
@@ -86,3 +109,9 @@ class ArraySymbol:
             length_sum += dimension[0]
         self.value = [None] * length_sum
 
+    def __repr__(self) -> str:
+        description = "Array: " + self.name + "\n"
+        description += "Type: " + self.type + "\n"
+        description += "Dimensions: " + str(self.dimensions) + "\n"
+        description += "Value: " + str(self.value) + "\n"
+        return description
