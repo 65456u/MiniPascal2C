@@ -153,8 +153,7 @@ def visit_parameter_list(node: lark.tree.Tree, context: Context):
 
 
 def visit_formal_parameter(node: lark.tree.Tree, context: Context):
-    tokens = []
-    tokens.append("(")
+    tokens = ["("]
     parameter_list = visit_parameter_list(node.children[0], context)
     tokens.extend(parameter_list)
     tokens.append(")")
@@ -164,14 +163,14 @@ def visit_formal_parameter(node: lark.tree.Tree, context: Context):
 def visit_subprogram_head(node: lark.tree.Tree, context: Context):
     tokens = []
     basic_type = None
-    id = None
+    id_ = None
     formal_parameter = None
     for child in node.children:
         if child.data == "basic_type":
             basic_type = visit_basic_type(child, context)
         elif child.data == "id":
             # subprogram_head中的id不需要考虑func_name修正
-            id = visit_id(child, context, None)
+            id_ = visit_id(child, context, None)
         elif child.data == "formal_parameter":
             formal_parameter = visit_formal_parameter(child, context)
         else:
@@ -180,9 +179,9 @@ def visit_subprogram_head(node: lark.tree.Tree, context: Context):
         tokens.append(basic_type)
     else:
         tokens.append("void")
-    tokens.append(id)
+    tokens.append(id_)
     tokens.extend(formal_parameter)
-    context.register_func(id, tokens, None)
+    context.register_func(id_, tokens, None)
     return tokens
 
 
@@ -254,7 +253,6 @@ def visit_variable_list(node, context, func_name):
 
 
 def visit_function_call(node, context, func_name):
-    print("func name", func_name)
     tokens = []
     function_type = None
     for child in node.children:
@@ -383,8 +381,6 @@ def visit_expression_list(node, context, func_name):
     # test if all members of tokens are string
     for token in tokens:
         if not isinstance(token, str):
-            print(tokens)
-            print(node.pretty())
             raise Exception("Token is not string: {}".format(token))
     return tokens
 
@@ -454,7 +450,6 @@ def construct_read_params(node, context, func_name):
     for child in node.children:
         if child.data == "expression":
             expression_tokens, expression_type = visit_expression(child, context, func_name)
-            print(expression_tokens)
             assert len(expression_tokens) == 1
             id_ = expression_tokens[0]
             ids.append(id_)
@@ -522,7 +517,6 @@ def visit_procedure_call(node, context, func_name):
                 tokens.append(visit_id(child, context, None))
         elif child.data == "expression_list":
             tokens.append("(")
-            expression_list_tokens = ""
             if isRead:
                 expression_list_tokens = construct_read_params(
                     child, context, func_name
@@ -578,8 +572,7 @@ def visit_for_statement(node, context, func_name):
             statement_tokens = visit_statement(child, context, func_name)
         else:
             raise Exception("Unknown for_statement child data: {}".format(child.data))
-    tokens.append("for")
-    tokens.append("(")
+    tokens.extend(["for", "("])
     tokens.extend(id_tokens)
     tokens.append("=")
     tokens.extend(from_tokens)
@@ -589,8 +582,7 @@ def visit_for_statement(node, context, func_name):
     tokens.extend(to_tokens)
     tokens.append(";")
     tokens.extend(id_tokens)
-    tokens.append("++)")
-    tokens.append("{")
+    tokens.extend(["++", ")"])
     tokens.extend(statement_tokens)
     tokens.append("}")
     return tokens
@@ -826,12 +818,7 @@ def visit_subprogram(node: lark.tree.Tree, context: Context):
     function_tokens.append("_" + function_name)
     function_tokens.append(";")
     function_tokens.append("}")
-    print(context.current_scope_index)
-    print("reg")
-    print(function_header)
-    print(function_tokens)
     context.declare_func(function_name, function_tokens)
-    print(context.get_funcs())
     context.exit_scope()
     return tokens
 
@@ -886,8 +873,6 @@ def visit_programstruct(node: lark.tree.Tree, context: Context):
             raise Exception("Unknown programstruct child data: {}".format(child.data))
     tokens.extend(program_head_tokens)
     functions = context.get_funcs()
-    print("functions")
-    print(functions)
     for function in functions:
         tokens.extend(functions[function].header)
         tokens.append(";")
