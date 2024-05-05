@@ -36,3 +36,18 @@ def preprocess(code: str) -> str:
     code_without_comments = code_without_comments.lower()
 
     return code_without_comments
+
+def postprocess(tokens: list) -> list:
+    # 仅保留连续";"中的第一个
+    new_tokens = []
+    pre_quote = False
+    for token in tokens:
+        if token == ";":
+            if not pre_quote:
+                new_tokens.append(token)
+            pre_quote = True
+        else:
+            new_tokens.append(token)
+            pre_quote = False
+    
+    return new_tokens

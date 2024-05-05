@@ -1,7 +1,7 @@
 from typing import Any
 from .visitors import visit_programstruct
 from lark import Lark
-from .utils import format_code
+from .utils import format_code, preprocess, postprocess
 from .context import Context
 from .rules import rules
 
@@ -12,10 +12,11 @@ class MP2CParser:
 
     def __call__(self, code) -> Any:
         parser = self.parser
+        code=preprocess(code)
         tree = parser.parse(code)
         context = Context()
         tokens = visit_programstruct(tree, context)
-        # return tokens,tokens,tokens
+        tokens=postprocess(tokens)
         result_string = "\n".join(tokens)
         result_string = format_code(result_string)
         return tree, tokens, result_string
