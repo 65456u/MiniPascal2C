@@ -21,4 +21,4 @@ class Converter:
         tokens = postprocess(tokens)
         result_string = "\n".join(tokens)
         result_string = format_code(result_string)
-        return tree, tokens, result_string
+        return tree, tokens, (True, result_string)
