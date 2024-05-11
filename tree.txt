@@ -3,13 +3,17 @@ programstruct
     id	answer
   program_body
     const_declarations
-      empty
-    var_declarations
-      empty
-    subprogram_declarations
       empty	
 
 
+    var_declarations
+      var_declaration
+        idlist
+          id	x
+        type
+          basic_type	integer
+    subprogram_declarations
+      empty	
 
     compound_statement
       statement_list
