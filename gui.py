@@ -56,21 +56,20 @@ def output_txt(targetTxt):
             file_path = folder_path + "/output.c"
             with open(file_path, "w") as file:
                 file.write(string)
-
+    
 def execute_txt(targetTxt):
     if(compileSucceed):
         code = targetTxt.get("1.0", "end-1c")
+        # 如果没有，则创建temp文件夹
+        os.makedirs("temp", exist_ok=True)
         # 使用gcc编译C代码
-        compile_result = subprocess.run(['gcc', '-xc', '-', '-o', 'temp'], input=code, capture_output=True, text=True)
+        compile_result = subprocess.run(['gcc', '-xc', '-', '-o', "./temp/output"], input=code, capture_output=True, text=True)
         # 检查编译是否成功
         if compile_result.returncode != 0:
             return None, compile_result.stderr
         # 运行编译后的可执行文件
-        run_result = subprocess.run(['./temp'], capture_output=True, text=True)
-        # 获取程序输出和错误信息
-        output = run_result.stdout
-        error = run_result.stderr
-        return output, error
+        command = 'cd ./temp && output.exe'
+        subprocess.Popen(["cmd.exe", '/k', command], creationflags=subprocess.CREATE_NEW_CONSOLE)
 
 
 compileSucceed = False
