@@ -1,4 +1,6 @@
 import tkinter as tk
+import subprocess
+import os
 from tkinter import filedialog
 from mp2c import Converter
 converter=Converter()
@@ -75,7 +77,20 @@ def output_txt(targetTxt):
             with open(file_path, 'w') as file:
                 file.write(string)
 
-
+def execute_txt(targetTxt):
+    if(compileSucceed):
+        code = targetTxt.get("1.0", "end-1c")
+        # 使用gcc编译C代码
+        compile_result = subprocess.run(['gcc', '-xc', '-', '-o', 'temp'], input=code, capture_output=True, text=True)
+        # 检查编译是否成功
+        if compile_result.returncode != 0:
+            return None, compile_result.stderr
+        # 运行编译后的可执行文件
+        run_result = subprocess.run(['./temp'], capture_output=True, text=True)
+        # 获取程序输出和错误信息
+        output = run_result.stdout
+        error = run_result.stderr
+        return output, error
 
 
 compileSucceed = False
@@ -160,7 +175,8 @@ buttonCompile = tk.Button(frameBottom, text="编译源文件", command=lambda: c
 buttonCompile.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 buttonOutput = tk.Button(frameBottom, text="导出目标文件", command=lambda: output_txt(targetTxt))
 buttonOutput.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
+buttonExecute = tk.Button(frameBottom, text="编译运行目标文件", command=lambda: execute_txt(targetTxt))
+buttonExecute.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
 # 运行主循环
 window.mainloop()
