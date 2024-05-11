@@ -35,7 +35,7 @@ class Context:
         arrays_in_top_smbltab = self.symbol_table[self.current_scope_index]["array"]
         dimensions = []
         for dimension in periods:
-            dimensions = [dimension[1] - dimension[0] + 1, dimension[0]]
+            dimensions.append([dimension[1] - dimension[0] + 1, dimension[0]])
         arrays_in_top_smbltab[name] = ArraySymbol(name, array_type,
                                                   dimensions)  # dimensions(length, start) : [[5, 1], [3, 2]]
 

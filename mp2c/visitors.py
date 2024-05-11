@@ -1,14 +1,13 @@
-import lark
-
-from .context import Context
 from .utils import *
 
 
+@ensure_strings
 def visit_empty(node: lark.tree.Tree, context: Context):
     tokens = []
     return tokens
 
 
+@ensure_strings
 def visit_optional_fraction(node: lark.tree.Tree, context: Context):
     return node.children[0].value
 
@@ -48,10 +47,12 @@ def visit_period(node: lark.tree.Tree, context: Context):
     return periods
 
 
+@ensure_strings
 def visit_basic_type(node: lark.tree.Tree, context: Context):
     return type_map[node.children[0].value]
 
 
+@ensure_strings
 def visit_type(node: lark.tree.Tree, context: Context):
     type_ = {"basic_type": None, "is_array": False, "period": []}
     for child in node.children:
@@ -65,7 +66,7 @@ def visit_type(node: lark.tree.Tree, context: Context):
     return type_
 
 
-def visit_id(node, context, func_name):
+def visit_id(node: lark.lark.Tree, context: Context, func_name: str):
     name = node.children[0].value
     if name == func_name:
         return "_" + name
@@ -73,12 +74,13 @@ def visit_id(node, context, func_name):
         return node.children[0].value
 
 
+@ensure_strings
 def visit_idlist(node: lark.tree.Tree, context: Context):
     ids = []
     for child in node.children:
         if child.data == "id":
             # 从idlist得到的id不需要考虑func_name修正
-            ids.append(visit_id(child, context, None))
+            ids.append(visit_id(child, context, ""))
         elif child.data == "idlist":
             ids.extend(visit_idlist(child, context))
         else:
@@ -86,6 +88,7 @@ def visit_idlist(node: lark.tree.Tree, context: Context):
     return ids
 
 
+@ensure_strings
 def visit_value_parameter(node: lark.tree.Tree, context: Context):
     ids = []
     type_ = None
@@ -101,6 +104,7 @@ def visit_value_parameter(node: lark.tree.Tree, context: Context):
     return {"ids": ids, "type": type_}
 
 
+@ensure_strings
 def visit_var_parameter(node: lark.tree.Tree, context: Context):
     value_parameter = visit_value_parameter(node.children[0], context)
     tokens = construct_parameter_tokens(value_parameter, context)
@@ -122,6 +126,7 @@ def construct_parameter_tokens(value_parameter, context):
     return tokens
 
 
+@ensure_strings
 def visit_parameter(node: lark.tree.Tree, context: Context):
     tokens = []
     parameter = None
@@ -136,6 +141,7 @@ def visit_parameter(node: lark.tree.Tree, context: Context):
     return tokens, parameter
 
 
+@ensure_strings
 def visit_parameter_list(node: lark.tree.Tree, context: Context):
     tokens = []
     first = True
@@ -152,6 +158,7 @@ def visit_parameter_list(node: lark.tree.Tree, context: Context):
     return tokens, parameter_list
 
 
+@ensure_strings
 def visit_formal_parameter(node: lark.tree.Tree, context: Context):
     tokens = ["("]
     parameter_list_tokens, parameter_list = visit_parameter_list(node.children[0], context)
@@ -160,6 +167,7 @@ def visit_formal_parameter(node: lark.tree.Tree, context: Context):
     return tokens, parameter_list
 
 
+@ensure_strings
 def visit_subprogram_head(node: lark.tree.Tree, context: Context):
     tokens = []
     basic_type = None
@@ -172,7 +180,7 @@ def visit_subprogram_head(node: lark.tree.Tree, context: Context):
             basic_type = visit_basic_type(child, context)
         elif child.data == "id":
             # subprogram_head中的id不需要考虑func_name修正
-            id_ = visit_id(child, context, None)
+            id_ = visit_id(child, context, "")
         elif child.data == "formal_parameter":
             formal_parameter_tokens, parameter_info_list = visit_formal_parameter(child, context)
         else:
@@ -202,7 +210,7 @@ def visit_func_id(node):
     return tokens
 
 
-def visit_id_varpart(node, context, func_name):
+def visit_id_varpart(node: lark.lark.Tree, context: Context, func_name: str, id_token):
     tokens = []
     for child in node.children:
         if child.data == "empty":
@@ -214,14 +222,25 @@ def visit_id_varpart(node, context, func_name):
             for expression_type in expression_types:
                 if expression_type != "int":
                     raise Exception("Array index must be integer")
-            tokens.extend(expression_list)
+            array_symbol = context.get_array(id_token)
+            # split expression_list by ','
+            count = 0
+            for expression_token in expression_list:
+                if expression_token == ",":
+                    offset = array_symbol.dimensions[count][1]
+                    tokens.extend(['-', str(offset)])
+                    count += 1
+                tokens.append(expression_token)
+            offset = array_symbol.dimensions[count][1]
+            tokens.extend(['-', str(offset)])
+            count += 1
             tokens.append("]")
         else:
             raise Exception("Unknown id_varpart child data: {}".format(child.data))
     return tokens
 
 
-def visit_variable(node, context, func_name):
+def visit_variable(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     isArray = False
     id_varpart = None
@@ -230,7 +249,7 @@ def visit_variable(node, context, func_name):
         if child.data == "id":
             id_token = visit_id(child, context, func_name)
         elif child.data == "id_varpart":
-            id_varpart = visit_id_varpart(child, context, func_name)
+            id_varpart = visit_id_varpart(child, context, func_name, id_token)
             if len(id_varpart) > 0:
                 isArray = True
         else:
@@ -250,7 +269,7 @@ def visit_variable(node, context, func_name):
     return tokens, variable_type
 
 
-def visit_variable_list(node, context, func_name):
+def visit_variable_list(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     first = True
     for child in node.children:
@@ -263,7 +282,7 @@ def visit_variable_list(node, context, func_name):
     return tokens
 
 
-def visit_function_call(node, context, func_name):
+def visit_function_call(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     function_type = None
     function = None
@@ -292,7 +311,7 @@ def visit_function_call(node, context, func_name):
     return tokens, function_type
 
 
-def visit_factor(node, context, func_name):
+def visit_factor(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     factor_type = None
     for child in node.children:
@@ -326,7 +345,7 @@ def visit_factor(node, context, func_name):
     return tokens, factor_type
 
 
-def visit_term(node, context, func_name):
+def visit_term(node: lark.lark.Tree, context: Context, func_name: str):
     term_type = None
     tokens = []
     for child in node.children:
@@ -344,7 +363,7 @@ def visit_term(node, context, func_name):
     return tokens, term_type
 
 
-def visit_simple_expression(node, context, func_name):
+def visit_simple_expression(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     simple_expression_type = None
     for child in node.children:
@@ -364,7 +383,7 @@ def visit_simple_expression(node, context, func_name):
     return tokens, simple_expression_type
 
 
-def visit_expression(node, context, func_name):
+def visit_expression(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     isBool = False
     simple_expression_type = None
@@ -384,7 +403,7 @@ def visit_expression(node, context, func_name):
     return tokens, expression_type
 
 
-def visit_expression_list(node, context, func_name):
+def visit_expression_list(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     first = True
     expression_types = []
@@ -403,7 +422,7 @@ def visit_expression_list(node, context, func_name):
     return tokens, expression_types
 
 
-def visit_assign_statement(node, context, func_name):
+def visit_assign_statement(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     variable_type = None
     expression_type = None
@@ -431,7 +450,7 @@ def visit_assign_statement(node, context, func_name):
     return tokens
 
 
-def visit_if_else_statement(node, context, func_name):
+def visit_if_else_statement(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     for child in node.children:
         if child.data == "expression":
@@ -455,7 +474,7 @@ def visit_if_else_statement(node, context, func_name):
     return tokens
 
 
-def visit_else_part(node, context, func_name):
+def visit_else_part(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     for child in node.children:
         if child.data == "empty":
@@ -471,7 +490,7 @@ def visit_else_part(node, context, func_name):
     return tokens
 
 
-def construct_read_params(node, context, func_name):
+def construct_read_params(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     ids = []
     types = []
@@ -511,7 +530,7 @@ def types_to_format(types):
     return format_
 
 
-def construct_write_params(node, context, func_name):
+def construct_write_params(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     expressions = []
     types = []
@@ -530,7 +549,7 @@ def construct_write_params(node, context, func_name):
     return tokens
 
 
-def visit_procedure_call(node, context, func_name):
+def visit_procedure_call(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     isRead = False
     isWrite = False
@@ -545,7 +564,7 @@ def visit_procedure_call(node, context, func_name):
                 tokens.append("printf")
             else:
                 # 过程调用不进行func_name修正
-                procedure_name = visit_id(child, context, None)
+                procedure_name = visit_id(child, context, "")
                 tokens.append(procedure_name)
         elif child.data == "expression_list":
             tokens.append("(")
@@ -576,7 +595,7 @@ def visit_procedure_call(node, context, func_name):
     return tokens
 
 
-def visit_statement_list(node, context, func_name):
+def visit_statement_list(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     for child in node.children:
         assert child.data == "statement"
@@ -586,7 +605,7 @@ def visit_statement_list(node, context, func_name):
     return tokens
 
 
-def visit_compound_statement(node, context, func_name):
+def visit_compound_statement(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     assert node.children[0].data == "statement_list"
     statement_list_tokens = visit_statement_list(node.children[0], context, func_name)
@@ -594,20 +613,25 @@ def visit_compound_statement(node, context, func_name):
     return tokens
 
 
-def visit_for_statement(node, context, func_name):
+def visit_for_statement(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     id_tokens = []
     from_tokens = []
     to_tokens = []
     statement_tokens = []
+    first = True
     for child in node.children:
-        if child.data == "id":
-            tokens.append(visit_id(child, context, func_name))
+        if isinstance(child, lark.lexer.Token):
+            if child.type != "ASSIGNOP":
+                raise Exception("Unknown for_statement child type: {}".format(child.type))
+        elif child.data == "id":
+            id_tokens = visit_id(child, context, func_name)
         elif child.data == "expression":
-            if id_tokens:
-                from_tokens = visit_expression(child, context, func_name)
+            if first:
+                from_tokens, from_type = visit_expression(child, context, func_name)
+                first = False
             else:
-                to_tokens = visit_expression(child, context, func_name)
+                to_tokens, to_type = visit_expression(child, context, func_name)
         elif child.data == "statement":
             statement_tokens = visit_statement(child, context, func_name)
         else:
@@ -623,18 +647,19 @@ def visit_for_statement(node, context, func_name):
     tokens.append(";")
     tokens.extend(id_tokens)
     tokens.extend(["++", ")"])
+    tokens.append("{")
     tokens.extend(statement_tokens)
     tokens.append("}")
     return tokens
 
 
-def visit_while_statement(node, context, func_name):
+def visit_while_statement(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     for child in node.children:
         if child.data == "expression":
             tokens.append("while")
             tokens.append("(")
-            expression_tokens = visit_expression(child, context, func_name)
+            expression_tokens, expression_type = visit_expression(child, context, func_name)
             tokens.extend(expression_tokens)
             tokens.append(")")
         elif child.data == "statement":
@@ -647,7 +672,7 @@ def visit_while_statement(node, context, func_name):
     return tokens
 
 
-def visit_statement(node, context, func_name):
+def visit_statement(node: lark.lark.Tree, context: Context, func_name: str):
     tokens = []
     for child in node.children:
         if child.data == "procedure_call":
@@ -683,6 +708,7 @@ def visit_statement(node, context, func_name):
     return tokens
 
 
+@ensure_strings
 def visit_const_value(node: lark.tree.Tree, context: Context):
     tokens = []
     typename = ""
@@ -709,6 +735,7 @@ def visit_const_value(node: lark.tree.Tree, context: Context):
     return [tokens, typename]
 
 
+@ensure_strings
 def visit_const_declaration(node: lark.tree.Tree, context: Context):
     tokens = []
     const_id = ""
@@ -716,7 +743,7 @@ def visit_const_declaration(node: lark.tree.Tree, context: Context):
         if child.data == "id":
             tokens.append("const")
             # 定义const_declaration时不进行id修正
-            const_id = visit_id(child, context, None)
+            const_id = visit_id(child, context, "")
         elif child.data == "const_value":
             res = visit_const_value(
                 child, context
@@ -738,6 +765,7 @@ def visit_const_declaration(node: lark.tree.Tree, context: Context):
     return tokens
 
 
+@ensure_strings
 def visit_const_declarations(node: lark.tree.Tree, context: Context):
     tokens = []
     for child in node.children:
@@ -752,6 +780,7 @@ def visit_const_declarations(node: lark.tree.Tree, context: Context):
     return tokens
 
 
+@ensure_strings
 def visit_var_declaration(node: lark.tree.Tree, context: Context):
     tokens = []
     idlist = []
@@ -766,25 +795,24 @@ def visit_var_declaration(node: lark.tree.Tree, context: Context):
         else:
             raise Exception("Unknown var_declaration child data: {}".format(child.data))
 
-    for id in idlist:
+    for id_ in idlist:
         tokens.append(id_type["basic_type"])
-        tokens.append(id)
+        tokens.append(id_)
 
         if id_type["is_array"]:
             for period in id_type["period"]:
                 tokens.append("[")
-                tokens.append(str(period[0]))
+                length = period[1] - period[0] + 1
+                tokens.append(str(length))
                 tokens.append("]")
-                tokens.append("[")
-                tokens.append(str(period[1]))
-                tokens.append("]")
-            context.register_array(id, id_type["basic_type"], id_type["period"])
+            context.register_array(id_, id_type["basic_type"], id_type["period"])
         else:
-            context.register_value(id, id_type["basic_type"], True)
+            context.register_value(id_, id_type["basic_type"], True)
         tokens.append(";")
     return tokens
 
 
+@ensure_strings
 def visit_var_declarations(node: lark.tree.Tree, context: Context):
     tokens = []
     for child in node.children:
@@ -799,6 +827,7 @@ def visit_var_declarations(node: lark.tree.Tree, context: Context):
     return tokens
 
 
+@ensure_strings
 def visit_program_head(node: lark.tree.Tree, context: Context):
     # tokens = []
     # for child in node.children:
@@ -817,7 +846,7 @@ def visit_program_head(node: lark.tree.Tree, context: Context):
     return tokens
 
 
-def visit_subprogram_body(node, context, subprogram_head_tokens):
+def visit_subprogram_body(node: lark.tree.Tree, context: Context, subprogram_head_tokens: list[str]):
     func_name = subprogram_head_tokens[1]
     ret_type = subprogram_head_tokens[0]
     context.register_value("_" + func_name, ret_type, True)
@@ -835,6 +864,7 @@ def visit_subprogram_body(node, context, subprogram_head_tokens):
     return tokens
 
 
+@ensure_strings
 def visit_subprogram(node: lark.tree.Tree, context: Context):
     context.enter_scope()
     tokens = []
@@ -863,6 +893,7 @@ def visit_subprogram(node: lark.tree.Tree, context: Context):
     return tokens
 
 
+@ensure_strings
 def visit_subprogram_declarations(node: lark.tree.Tree, context: Context):
     tokens = []
     for child in node.children:
@@ -879,6 +910,7 @@ def visit_subprogram_declarations(node: lark.tree.Tree, context: Context):
     return tokens
 
 
+@ensure_strings
 def visit_program_body(node: lark.tree.Tree, context: Context):
     tokens = []
     for child in node.children:
@@ -898,6 +930,7 @@ def visit_program_body(node: lark.tree.Tree, context: Context):
     return tokens
 
 
+@ensure_strings
 def visit_programstruct(node: lark.tree.Tree, context: Context):
     # 进入全局作用域
     context.enter_scope()

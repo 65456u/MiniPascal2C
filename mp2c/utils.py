@@ -1,5 +1,9 @@
-import subprocess
 import re
+import subprocess
+
+import lark
+
+from .context import Context
 
 type_map = {"integer": "int", "real": "float", "boolean": "bool", "char": "char"}
 relop_map = {"=": "==", "<>": "!=", "<": "<", "<=": "<=", ">": ">", ">=": ">="}
@@ -37,6 +41,7 @@ def preprocess(code: str) -> str:
 
     return code_without_comments
 
+
 def postprocess(tokens: list) -> list:
     # 仅保留连续";"中的第一个
     new_tokens = []
@@ -49,5 +54,16 @@ def postprocess(tokens: list) -> list:
         else:
             new_tokens.append(token)
             pre_quote = False
-    
+
     return new_tokens
+
+
+def ensure_strings(func):
+    def wrapper(node: lark.tree.Tree, context: Context):
+        tokens = func(node, context)
+        for token in tokens:
+            if not isinstance(token, str):
+                raise TypeError("Expected token to be a string, but got {}".format(type(token)))
+        return tokens
+
+    return wrapper
