@@ -1,7 +1,7 @@
 import re
 import subprocess
 
-import lark
+from lark.lark import Tree
 
 from .context import Context
 
@@ -20,10 +20,10 @@ def format_code(code: str) -> str:
     # 启动子进程
     process = subprocess.Popen(
         command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+        stdin = subprocess.PIPE,
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+        text = True,
     )
 
     # 将代码写入stdin并获取格式化后的代码
@@ -34,7 +34,7 @@ def format_code(code: str) -> str:
 
 def preprocess(code: str) -> str:
     # 去除形如 {...} 的注释
-    code_without_comments = re.sub(r"\{.*?\}", "", code, flags=re.DOTALL)
+    code_without_comments = re.sub(r"\{.*?\}", "", code, flags = re.DOTALL)
 
     # 将代码转换成小写
     code_without_comments = code_without_comments.lower()
@@ -59,7 +59,7 @@ def postprocess(tokens: list) -> list:
 
 
 def ensure_strings(func):
-    def wrapper(node: lark.tree.Tree, context: Context):
+    def wrapper(node: Tree, context: Context):
         tokens = func(node, context)
         for token in tokens:
             if not isinstance(token, str):

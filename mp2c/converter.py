@@ -43,3 +43,8 @@ class Converter:
             result_string = "\n".join(tokens)
             result_string = format_code(result_string)
             return True, result_string
+
+
+def error_handler(e):
+    print(e.token.type)
+    return False

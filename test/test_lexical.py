@@ -1,5 +1,5 @@
 from mp2c import Converter
-from test_codes import *
+from .test_codes import *
 
 
 class TestLexical:

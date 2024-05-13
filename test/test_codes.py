@@ -89,6 +89,60 @@ begin
   { 访问数组元素 }
   for i := 1 to 10 do
     write(arr[i]);
-  writeln;
+end.
+"""
+scope_test_code = r"""
+program VariableScope;
+
+var
+  globalVar: integer;
+
+procedure LocalScope;
+var
+  localVar: integer;
+begin
+  globalVar := 10;
+  localVar := 20;
+end;
+
+begin
+  globalVar := 5;
+  LocalScope;
+  write(globalVar);  { Output: 10 }
+  write(localVar);   { Compilation error: localVar not defined in this scope }
+end.
+"""
+scope_test_code2 = r"""
+program ScopeTest;
+
+var
+    globalVar: integer;
+
+procedure PrintGlobal;
+var
+    localVar: integer;
+begin
+    localVar := 10;
+    write(globalVar);
+    write(localVar);
+end;
+
+procedure ModifyGlobal;
+var
+    localVar: integer;
+begin
+    localVar := 20;
+    globalVar := localVar;
+end;
+
+var
+    localVar: integer;
+begin
+    localVar := 5;
+    write(localVar);
+    write(globalVar);
+    PrintGlobal;
+    ModifyGlobal;
+    write(globalVar);
 end.
 """

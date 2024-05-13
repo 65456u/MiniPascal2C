@@ -2,8 +2,7 @@ rules = r"""
 programstruct            : program_head ";" program_body "."
 program_head             : "program" id "(" idlist ")"
                          | "program" id
-idlist                   : id
-                         | idlist "," id
+idlist                   : id ("," id)*
 program_body             : const_declarations var_declarations subprogram_declarations compound_statement
 const_declarations       : empty
                          | "const" const_declaration ";"
@@ -16,8 +15,7 @@ PLUS                     : "+"
 MINUS                    : "-"        
 var_declarations         : empty
                          | "var" var_declaration ";"
-var_declaration          : idlist ":" type
-                         | var_declaration ";" idlist ":" type
+var_declaration          : idlist ":" type (";" idlist ":" type)*
 type                     : basic_type
                          | "array" "[" period "]" "of" basic_type
 basic_type               : INTEGER
@@ -26,12 +24,12 @@ basic_type               : INTEGER
                          | CHAR
 period                   : DIGITS ".." DIGITS
                          | period "," DIGITS ".." DIGITS
-subprogram_declarations  : empty
-                         | subprogram_declarations subprogram ";"
+subprogram_declarations  : (subprogram ";")*
 subprogram               : subprogram_head ";" subprogram_body
 subprogram_head          : "procedure" id formal_parameter
                          | "function" id formal_parameter ":" basic_type
 formal_parameter         : "(" parameter_list ")"
+                         | empty
 parameter_list           : empty
                          | parameter (";" parameter)*
 parameter                : var_parameter
