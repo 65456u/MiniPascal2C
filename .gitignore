@@ -83,8 +83,11 @@ __pycache__
 
 dist
 
-build
+build/
 
 *.egg-info
 
 .VSCodeCounter
+
+temp/
+
