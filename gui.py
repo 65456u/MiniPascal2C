@@ -29,6 +29,7 @@ def update_line_numbers(event, line_txt, text):
             line_txt.insert(tk.END, str(i))
     line_txt.yview_moveto(text.yview()[0])
     line_txt.configure(state = tk.DISABLED)
+    sourceTxt.tag_remove("colored", "1.0", tk.END)
 
 
 def compile_txt(source, target):
@@ -103,13 +104,13 @@ def compile_txt(source, target):
         # target文本框写入错误信息
         outputErrorMsg = errorMsg.split(", at", 1)[0]
         target.config(state=tk.NORMAL)
+        target.delete("1.0", tk.END)
         target.insert(tk.END, outputErrorMsg)
         target.tag_add("coloredText", "1.0", tk.END)
         target.tag_config("coloredText", foreground="red")
         target.config(state=tk.DISABLED)
         # 标红错误行
         s_line_numbers.config(state=tk.NORMAL)
-        source.config(state=tk.NORMAL)
         lineNum = int(errorMsg.split("at line ", 1)[1].split(" ", 1)[0])
         start_index = f"{lineNum}.0"
         end_index = f"{lineNum + 1}.0"
@@ -118,7 +119,6 @@ def compile_txt(source, target):
         s_line_numbers.tag_add("colored", start_index, end_index)
         s_line_numbers.tag_config("colored", background="red")
         s_line_numbers.config(state=tk.DISABLED)
-        source.config(state=tk.DISABLED)
         
 def output_txt(target_txt):
     if compileSucceed:
