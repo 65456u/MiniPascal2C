@@ -33,22 +33,93 @@ def update_line_numbers(event, line_txt, text):
 
 def compile_txt(source, target):
     sourceStr = source.get("1.0", "end-1c")
-    status, compileRes = converter(sourceStr)
+    if sourceStr == "":
+        return
+    compileRes = converter.convert(sourceStr)
+    compileSucceeded = compileRes.success
+    isVisitingError = compileRes.code != ""
+    resString = compileRes.code
+    errorMsg = compileRes.error_info if isVisitingError else compileRes.error_messages[0]
     global compileSucceed
-    if compileRes[0]:
+
+    if compileSucceeded:
         compileSucceed = True
-        labelRight.configure(text = "编译状态：成功")
-    else:
+        labelRight.config(text="编译状态：成功")
+        # c代码写入target文本框
+        target.config(state=tk.NORMAL)
+        target.delete("1.0", tk.END)
+        target.insert(tk.END, resString)
+        target.config(state=tk.DISABLED)
+
+    # 语义错误
+    elif isVisitingError:
         compileSucceed = False
-        labelRight.configure(text = "编译状态：失败")
-    resString = compileRes[1]
-    target.configure(state = tk.NORMAL)
-    target.delete("1.0", tk.END)
-    target.insert(tk.END, resString)
-    target.configure(state = tk.DISABLED)
-    update_line_numbers("", t_line_numbers, target)
+        labelRight.config(text="编译状态：语义错误")
+        # c代码写入target文本框
+        target.config(state=tk.NORMAL)
+        target.delete("1.0", tk.END)
+        target.insert(tk.END, resString)
+        # 处理行号，写入错误信息
+        t_line_numbers.config(state=tk.NORMAL)
+        t_line_numbers.delete("1.0", tk.END)
+        lines = target.get("1.0", tk.END).split("\n")
+        for i in range(1, len(lines)):
+            if i != len(lines)-1:
+                t_line_numbers.insert(tk.END, str(i) + "\n")
+            else:
+                t_line_numbers.insert(tk.END, str(i))
+        end_index = t_line_numbers.index(tk.END)
+        t_line_numbers.insert(tk.END, "\n\n" + "err:")
+        t_line_numbers.tag_add("coloredText", end_index, tk.END)
+        t_line_numbers.tag_config("coloredText", foreground="red")
+        # 错误信息写入target文本框
+        outputErrorMsg = errorMsg.split(":", 5)[4]
+        end_index = target.index(tk.END)
+        target.insert(tk.END, "\n\n" + outputErrorMsg)
+        target.tag_add("coloredText", end_index, tk.END)
+        target.tag_config("coloredText", foreground="red")
+        # 标红错误行
+        lineNum = int(errorMsg.split(":", 2)[1])
+        start_index = f"{lineNum}.0"
+        end_index = f"{lineNum + 1}.0"
+        target.tag_add("colored", start_index, end_index)
+        target.tag_config("colored", background="red")
+        t_line_numbers.tag_add("colored", start_index, end_index)
+        t_line_numbers.tag_config("colored", background="red")
+        t_line_numbers.config(state=tk.DISABLED)
+        target.config(state=tk.DISABLED)
 
-
+    # 语法错误
+    elif not isVisitingError:
+        compileSucceed = False
+        labelRight.config(text="编译状态：词法/语法错误")
+        # 行号写入错误信息
+        t_line_numbers.config(state=tk.NORMAL)
+        t_line_numbers.delete("1.0", tk.END)
+        t_line_numbers.insert(tk.END, "err:")
+        t_line_numbers.tag_add("coloredText", "1.0", tk.END)
+        t_line_numbers.tag_config("coloredText", foreground="red")
+        t_line_numbers.config(state=tk.DISABLED)
+        # target文本框写入错误信息
+        outputErrorMsg = errorMsg.split(", at", 1)[0]
+        target.config(state=tk.NORMAL)
+        target.insert(tk.END, outputErrorMsg)
+        target.tag_add("coloredText", "1.0", tk.END)
+        target.tag_config("coloredText", foreground="red")
+        target.config(state=tk.DISABLED)
+        # 标红错误行
+        s_line_numbers.config(state=tk.NORMAL)
+        source.config(state=tk.NORMAL)
+        lineNum = int(errorMsg.split("at line ", 1)[1].split(" ", 1)[0])
+        start_index = f"{lineNum}.0"
+        end_index = f"{lineNum + 1}.0"
+        source.tag_add("colored", start_index, end_index)
+        source.tag_config("colored", background="red")
+        s_line_numbers.tag_add("colored", start_index, end_index)
+        s_line_numbers.tag_config("colored", background="red")
+        s_line_numbers.config(state=tk.DISABLED)
+        source.config(state=tk.DISABLED)
+        
 def output_txt(target_txt):
     if compileSucceed:
         string = target_txt.get("1.0", "end-1c")
