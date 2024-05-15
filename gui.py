@@ -90,7 +90,7 @@ def compile_txt(source, target):
         target.tag_add("coloredText", end_index, tk.END)
         target.tag_config("coloredText", foreground="red")
         # 标红错误行
-        lineNum = int(errorMsg.split(":", 2)[1])
+        lineNum = int(errorMsg.split(".c:", 1)[1].split(":", 1)[0])
         start_index = f"{lineNum}.0"
         end_index = f"{lineNum + 1}.0"
         target.tag_add("colored", start_index, end_index)
