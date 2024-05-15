@@ -51,6 +51,16 @@ def compile_txt(source, target):
         target.delete("1.0", tk.END)
         target.insert(tk.END, resString)
         target.config(state=tk.DISABLED)
+        # 处理行号
+        t_line_numbers.config(state=tk.NORMAL)
+        t_line_numbers.delete("1.0", tk.END)
+        lines = target.get("1.0", tk.END).split("\n")
+        for i in range(1, len(lines)):
+            if i != len(lines)-1:
+                t_line_numbers.insert(tk.END, str(i) + "\n")
+            else:
+                t_line_numbers.insert(tk.END, str(i))
+        t_line_numbers.config(state=tk.DISABLED)
 
     # 语义错误
     elif isVisitingError:
