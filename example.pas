@@ -12,6 +12,6 @@ begin
 end;
 
 begin
-  read(x, y);
+  read(x, a);
   write(gcd(x, y));
 end.

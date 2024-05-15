@@ -17,3 +17,13 @@ print(result.success)
 print(result.code)
 print(result.error_messages)
 print(result.error_info)
+
+fuck_test_code = r"""
+fuck
+"""
+result = converter.convert(fuck_test_code, debug = True)
+print(result.success)
+print(result.code)
+for message in result.error_messages:
+    print(message)
+print(result.error_info)

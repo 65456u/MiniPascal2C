@@ -260,7 +260,9 @@ def visit_variable(node: Tree, context: Context, func_name: str):
             # raise Exception("Variable not declared: {}".format(id_token))
             error_message = "Variable not declared: {}".format(id_token)
             context.record_error(error_message)
-        variable_type = value.type
+            variable_type = ""
+        else:
+            variable_type = value.type
     tokens.append(id_token)
     tokens.extend(id_varpart)
     return tokens, variable_type
@@ -444,11 +446,16 @@ def visit_assign_statement(node: Tree, context: Context, func_name: str):
                 "Unknown assignment_statement child data: {}".format(child.data)
             )
     if variable_type != expression_type:
-        raise Exception("Type mismatch in assignment: {},{} != {}, {}".
-                        format("".join(variable_tokens),
-                               variable_type,
-                               "".join(expression_tokens),
-                               expression_type))
+        # raise Exception("Type mismatch in assignment: {},{} != {}, {}".
+        #                 format("".join(variable_tokens),
+        #                        variable_type,
+        #                        "".join(expression_tokens),
+        #                        expression_type))
+        error_message = "Type mismatch in assignment: {},{} != {}, {}".format(
+            "".join(variable_tokens), variable_type, "".join(expression_tokens), expression_type
+        )
+        context.record_error(error_message)
+
     return tokens
 
 
@@ -504,11 +511,15 @@ def construct_read_params(node: Tree, context: Context, func_name: str):
             ids.append(id_)
             value = context.get_value(id_)
             if value is None:
-                raise Exception("Variable not declared: {}".format(id_))
-            types.append(value.type)
+                # raise Exception("Variable not declared: {}".format(id_))
+                error_message = "Variable not declared: {}".format(id_)
+                context.record_error(error_message)
+                types.append("")
+            else:
+                types.append(value.type)
         else:
             raise Exception("Unknown read_params child data: {}".format(child.data))
-    format_ = types_to_format(types)
+    format_ = types_to_format(types, context)
     tokens.append(format_)
     for id_ in ids:
         tokens.append(",")
@@ -517,7 +528,7 @@ def construct_read_params(node: Tree, context: Context, func_name: str):
     return tokens
 
 
-def types_to_format(types, line = False):
+def types_to_format(types, context, line = False):
     format_ = '"'
     for id_type in types:
         if id_type == "int":
@@ -526,6 +537,9 @@ def types_to_format(types, line = False):
             format_ += r"%f"
         elif id_type == "char":
             format_ += r"%c"
+        elif id_type == "":
+            error_message = "Variable not declared"
+            context.record_error(error_message)
         else:
             raise Exception("Unknown type: {}".format(id_type))
     if line:
@@ -545,7 +559,7 @@ def construct_write_params(node: Tree, context: Context, func_name: str, line = 
             types.append(expression_type)
         else:
             raise Exception("Unknown write_params child data: {}".format(child.data))
-    format_ = types_to_format(types, line)
+    format_ = types_to_format(types, context, line)
     tokens.append(format_)
     for expression in expressions:
         tokens.append(",")
