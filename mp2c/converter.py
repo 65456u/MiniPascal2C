@@ -8,7 +8,7 @@ from .visitors import visit_programstruct
 
 class Converter:
     def __init__(self):
-        self.parser = Lark(rules, start = "programstruct")
+        self.parser = Lark(rules, start = "programstruct", debug = True)
 
     def __call__(self, code, debug = False) -> tuple[bool, str]:
         if not debug:

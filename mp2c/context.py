@@ -23,7 +23,7 @@ class Context:
     def declare_func(self, name, tokens):
         self.symbol_table[self.current_scope_index - 1]["subprogram"][name].tokens = tokens
 
-    def register_value(self, name, value_type, mutable, value=None):
+    def register_value(self, name, value_type, mutable, value = None):
         if self.current_scope_index < 0 or self.current_scope_index >= len(self.symbol_table):
             raise Exception("try to register value {} in no scope ".format(name))
         values_in_top_smbltab = self.symbol_table[self.current_scope_index]["value"]
@@ -55,10 +55,20 @@ class Context:
         return self.symbol_table[self.current_scope_index]["array"]
 
     def get_value(self, name):
-        return self.get_values().get(name)
+        value_symbol = self.get_values().get(name)
+        context_index = self.current_scope_index
+        while value_symbol is None and context_index >= 0:
+            value_symbol = self.symbol_table[context_index]["value"].get(name)
+            context_index -= 1
+        return value_symbol
 
     def get_array(self, name):
-        return self.get_arrays().get(name)
+        array_symbol = self.get_arrays().get(name)
+        context_index = self.current_scope_index
+        while array_symbol is None and context_index >= 0:
+            array_symbol = self.symbol_table[context_index]["array"].get(name)
+            context_index -= 1
+        return array_symbol
 
     def get_func(self, name):
         index = self.current_scope_index

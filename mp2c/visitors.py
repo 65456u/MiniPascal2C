@@ -1,7 +1,7 @@
 from lark.lark import Tree, Token
 
 from .context import Context
-from .utils import type_map, mulop_map, uminus_map, assignop_map, addop_map, relop_map
+from .utils import type_map, mulop_map, uminus_map, assignop_map, addop_map, relop_map, error_recorder
 
 
 def visit_empty(node: Tree, context: Context):
@@ -52,6 +52,7 @@ def visit_basic_type(node: Tree, context: Context):
     return type_map[node.children[0].value]
 
 
+@error_recorder("visit_type")
 def visit_type(node: Tree, context: Context):
     type_ = {"basic_type": None, "is_array": False, "period": []}
     for child in node.children:
@@ -235,7 +236,7 @@ def visit_id_varpart(node: Tree, context: Context, func_name: str, id_token):
 def visit_variable(node: Tree, context: Context, func_name: str):
     tokens = []
     isArray = False
-    id_varpart = None
+    id_varpart = []
     id_token = None
     for child in node.children:
         if child.data == "id":
@@ -507,7 +508,7 @@ def construct_read_params(node: Tree, context: Context, func_name: str):
     return tokens
 
 
-def types_to_format(types):
+def types_to_format(types, line = False):
     format_ = '"'
     for id_type in types:
         if id_type == "int":
@@ -518,11 +519,13 @@ def types_to_format(types):
             format_ += r"%c"
         else:
             raise Exception("Unknown type: {}".format(id_type))
+    if line:
+        format_ += r"\n"
     format_ += '"'
     return format_
 
 
-def construct_write_params(node: Tree, context: Context, func_name: str):
+def construct_write_params(node: Tree, context: Context, func_name: str, line = False):
     tokens = []
     expressions = []
     types = []
@@ -533,11 +536,12 @@ def construct_write_params(node: Tree, context: Context, func_name: str):
             types.append(expression_type)
         else:
             raise Exception("Unknown write_params child data: {}".format(child.data))
-    format_ = types_to_format(types)
+    format_ = types_to_format(types, line)
     tokens.append(format_)
     for expression in expressions:
         tokens.append(",")
         tokens.extend(expression)
+
     return tokens
 
 
@@ -545,7 +549,9 @@ def visit_procedure_call(node: Tree, context: Context, func_name: str):
     tokens = []
     isRead = False
     isWrite = False
+    isWriteLn = False
     procedure_name = None
+    flag = False
     for child in node.children:
         if child.data == "id":
             if child.children[0].value == "read":
@@ -554,11 +560,15 @@ def visit_procedure_call(node: Tree, context: Context, func_name: str):
             elif child.children[0].value == "write":
                 isWrite = True
                 tokens.append("printf")
+            elif child.children[0].value == "writeln":
+                isWriteLn = True
+                tokens.append("printf")
             else:
                 # 过程调用不进行func_name修正
                 procedure_name = visit_id(child, context, "")
                 tokens.append(procedure_name)
         elif child.data == "expression_list":
+            flag = True
             tokens.append("(")
             if isRead:
                 expression_list_tokens = construct_read_params(
@@ -567,6 +577,10 @@ def visit_procedure_call(node: Tree, context: Context, func_name: str):
             elif isWrite:
                 expression_list_tokens = construct_write_params(
                     child, context, func_name
+                )
+            elif isWriteLn:
+                expression_list_tokens = construct_write_params(
+                    child, context, func_name, True
                 )
             else:
                 expression_list_tokens, expression_types = visit_expression_list(
@@ -579,11 +593,12 @@ def visit_procedure_call(node: Tree, context: Context, func_name: str):
                     raise Exception("Number of parameters does not match")
                 if expression_types != function.parameter_list:
                     raise Exception("Parameter types do not match")
-
             tokens.extend(expression_list_tokens)
             tokens.append(")")
         else:
             raise Exception("Unknown procedure_call child data: {}".format(child.data))
+    if not flag:
+        tokens.extend(["(", ")"])
     return tokens
 
 
@@ -607,7 +622,7 @@ def visit_compound_statement(node: Tree, context: Context, func_name: str):
 
 def visit_for_statement(node: Tree, context: Context, func_name: str):
     tokens = []
-    id_tokens = []
+    id_token = []
     from_tokens = []
     to_tokens = []
     statement_tokens = []
@@ -617,7 +632,9 @@ def visit_for_statement(node: Tree, context: Context, func_name: str):
             if child.type != "ASSIGNOP":
                 raise Exception("Unknown for_statement child type: {}".format(child.type))
         elif child.data == "id":
-            id_tokens = visit_id(child, context, func_name)
+            context.enter_scope()
+            id_token = visit_id(child, context, func_name)
+            context.register_value(id_token, "int", True)
         elif child.data == "expression":
             if first:
                 from_tokens, from_type = visit_expression(child, context, func_name)
@@ -629,19 +646,20 @@ def visit_for_statement(node: Tree, context: Context, func_name: str):
         else:
             raise Exception("Unknown for_statement child data: {}".format(child.data))
     tokens.extend(["for", "("])
-    tokens.extend(id_tokens)
+    tokens.extend(id_token)
     tokens.append("=")
     tokens.extend(from_tokens)
     tokens.append(";")
-    tokens.extend(id_tokens)
+    tokens.extend(id_token)
     tokens.append("<=")
     tokens.extend(to_tokens)
     tokens.append(";")
-    tokens.extend(id_tokens)
+    tokens.extend(id_token)
     tokens.extend(["++", ")"])
     tokens.append("{")
     tokens.extend(statement_tokens)
     tokens.append("}")
+    context.exit_scope()
     return tokens
 
 
@@ -771,32 +789,29 @@ def visit_const_declarations(node: Tree, context: Context):
 
 def visit_var_declaration(node: Tree, context: Context):
     tokens = []
-    idlist = []
-    id_type = None
+    id_lists = []
+    id_types = []
     for child in node.children:
         if child.data == "idlist":
-            idlist = visit_idlist(child, context)
+            id_lists.append(visit_idlist(child, context))
         elif child.data == "type":
-            id_type = visit_type(child, context)
-        elif child.data == "var_declaration":
-            tokens.extend(visit_var_declaration(child, context))
+            id_types.append(visit_type(child, context))
         else:
             raise Exception("Unknown var_declaration child data: {}".format(child.data))
+    for id_list, id_type in zip(id_lists, id_types):
+        for id_ in id_list:
+            tokens.append(id_type["basic_type"])
+            tokens.append(id_)
+            if id_type["is_array"]:
+                for period in id_type["period"]:
+                    tokens.append("[")
+                    tokens.append(str(period[0]))
+                    tokens.append("]")
+                context.register_array(id_, id_type["basic_type"], id_type["period"])
+            else:
+                context.register_value(id_, id_type["basic_type"], True)
+            tokens.append(";")
 
-    for id_ in idlist:
-        tokens.append(id_type["basic_type"])
-        tokens.append(id_)
-
-        if id_type["is_array"]:
-            for period in id_type["period"]:
-                tokens.append("[")
-                length = period[1] - period[0] + 1
-                tokens.append(str(length))
-                tokens.append("]")
-            context.register_array(id_, id_type["basic_type"], id_type["period"])
-        else:
-            context.register_value(id_, id_type["basic_type"], True)
-        tokens.append(";")
     return tokens
 
 
@@ -828,14 +843,15 @@ def visit_program_head(node: Tree, context: Context):
     #         tokens.append(";")
     #     else:
     #         raise Exception("Unknown program_head child data: {}".format(child.data))
-    tokens = ['#include "mp2c.h"']
+    tokens = ['#include "stdio.h"']
     return tokens
 
 
 def visit_subprogram_body(node: Tree, context: Context, subprogram_head_tokens: list[str]):
     func_name = subprogram_head_tokens[1]
     ret_type = subprogram_head_tokens[0]
-    context.register_value("_" + func_name, ret_type, True)
+    if ret_type != "void":
+        context.register_value("_" + func_name, ret_type, True)
     tokens = []
     for child in node.children:
         if child.data == "const_declarations":
@@ -867,11 +883,14 @@ def visit_subprogram(node: Tree, context: Context):
     ret_type = subprogram_head_tokens[0]
     function_name = subprogram_head_tokens[1]
     function_header = subprogram_head_tokens
-    function_tokens = ["{", ret_type, "_" + function_name, ";"]
+    function_tokens = ["{"]
+    if ret_type != "void":
+        function_tokens.extend([ret_type, "_" + function_name, ";"])
     function_tokens.extend(subprogram_body_tokens)
-    function_tokens.append("return")
-    function_tokens.append("_" + function_name)
-    function_tokens.append(";")
+    if ret_type != "void":
+        function_tokens.append("return")
+        function_tokens.append("_" + function_name)
+        function_tokens.append(";")
     function_tokens.append("}")
     context.declare_func(function_name, function_tokens)
     context.exit_scope()
