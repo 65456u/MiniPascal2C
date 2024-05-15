@@ -5,6 +5,8 @@ class Context:
     def __init__(self):
         self.current_scope_index = -1
         self.symbol_table = deque()
+        self.on_error = False
+        self.error_messages = []
 
     def enter_scope(self):
         self.symbol_table.append({"value": {}, "array": {}, "subprogram": {}})
@@ -77,6 +79,10 @@ class Context:
             func = self.symbol_table[index]["subprogram"].get(name)
             index -= 1
         return func
+
+    def record_error(self, message):
+        self.on_error = True
+        self.error_messages.append(message)
 
     # def cname_to_type(self, name):
     #     res = int

@@ -1,4 +1,3 @@
-#pragma once
 #ifndef _MP2C_H_
 #define _MP2C_H_
 
@@ -8,4 +7,4 @@ void writeln(const char* str) {
 }
 
 
-#endif _MP2C_H_
+#endif

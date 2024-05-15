@@ -1,3 +1,5 @@
+import pytest
+
 from mp2c import Converter, compile_code
 
 
@@ -12,7 +14,7 @@ class TestLexical:
         end.
         """
         converter = Converter()
-        success, result = converter(identifier_test_code)
+        success, result = converter(identifier_test_code, debug = True)
         output = compile_code(result)
         assert output == ""
 
@@ -35,7 +37,7 @@ class TestLexical:
         end.
         """
         converter = Converter()
-        success, result = converter(keyword_test_code)
+        success, result = converter(keyword_test_code, debug = True)
         output = compile_code(result)
         assert output == "p"
 
@@ -52,7 +54,7 @@ class TestLexical:
         end.
         """
         converter = Converter()
-        success, result = converter(number_test_code)
+        success, result = converter(number_test_code, debug = True)
         output = compile_code(result)
         assert output == "123-4563.140000-0.618000"
 
@@ -67,8 +69,8 @@ class TestLexical:
         end.
         """
         converter = Converter()
-        success, result = converter(char_test_code)
-        assert not success
+        with pytest.raises(Exception):
+            success, result = converter(char_test_code, debug = True)
 
     def test_lexical_operator(self):
         operator_test_code = r"""
@@ -87,7 +89,7 @@ class TestLexical:
         end.
         """
         converter = Converter()
-        success, result = converter(operator_test_code)
+        success, result = converter(operator_test_code, debug = True)
         output = compile_code(result)
         assert output == "13730331"
 
@@ -104,6 +106,6 @@ class TestLexical:
         end.
         """
         converter = Converter()
-        success, result = converter(comment_test_code)
+        success, result = converter(comment_test_code, debug = True)
         output = compile_code(result)
         assert output == ""

@@ -1,7 +1,5 @@
 import functools
 import re
-import subprocess
-import tempfile
 
 from lark.lark import Tree
 
@@ -35,7 +33,7 @@ def format_code(code: str) -> str:
     return formatted_code
 
 
-def compile_code(code: str, input_ = None) -> str:
+def compile_code(code: str, input_ = None, compiler = "clang") -> str:
     # 创建临时文件来存储代码
     with tempfile.NamedTemporaryFile(suffix = ".c", delete = False) as source_file:
         source_file.write(code.encode())  # 将字符串编码为字节对象
@@ -44,7 +42,7 @@ def compile_code(code: str, input_ = None) -> str:
 
     # 编译代码
     executable_path = source_file_path[:-2]  # 去掉 .c 后缀
-    compile_command = ["gcc", source_file_path, "-o", executable_path]
+    compile_command = [compiler, source_file_path, "-o", executable_path]
     compile_process = subprocess.run(
         compile_command,
         stdout = subprocess.PIPE,
@@ -128,3 +126,57 @@ def error_recorder(info):
         return wrapper
 
     return decorator
+
+
+def ensure_list_of_strings(func):
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        flag = False
+        if isinstance(result, tuple):
+            if not isinstance(result[0], list) or not all(isinstance(item, str) for item in result[0]):
+                flag = True
+        elif not isinstance(result, list) or not all(isinstance(item, str) for item in result):
+            flag = True
+        if flag:
+            raise TypeError("Tokens must be strings")
+        return result
+
+    return wrapper
+
+
+import subprocess
+import tempfile
+
+
+def code_analyze(code: str) -> str:
+    """
+    使用 Clang Static Analyzer 对给定的 C 代码进行静态分析,
+    返回分析结果的输出。
+    """
+    # 创建临时文件存储代码
+    with tempfile.NamedTemporaryFile(mode = 'w', suffix = '.c', delete = False) as tmp_file:
+        tmp_file.write(code)
+        tmp_file_name = tmp_file.name
+
+    # 构建 Clang 命令
+    command = ["clang", "-c", "--analyze", tmp_file_name]
+
+    # 启动子进程
+    process = subprocess.Popen(
+        command,
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+        text = True,
+    )
+
+    # 获取输出
+    stdout, stderr = process.communicate()
+
+    # 删除临时文件
+    try:
+        import os
+        os.remove(tmp_file_name)
+    except Exception as e:
+        print(f"Failed to delete temporary file: {e}")
+
+    return stdout or stderr

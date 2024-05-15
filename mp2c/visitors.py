@@ -1,7 +1,6 @@
-from lark.lark import Tree, Token
+from lark.lark import Token
 
-from .context import Context
-from .utils import type_map, mulop_map, uminus_map, assignop_map, addop_map, relop_map, error_recorder
+from .utils import *
 
 
 def visit_empty(node: Tree, context: Context):
@@ -52,7 +51,6 @@ def visit_basic_type(node: Tree, context: Context):
     return type_map[node.children[0].value]
 
 
-@error_recorder("visit_type")
 def visit_type(node: Tree, context: Context):
     type_ = {"basic_type": None, "is_array": False, "period": []}
     for child in node.children:
@@ -214,7 +212,9 @@ def visit_id_varpart(node: Tree, context: Context, func_name: str, id_token):
             # check if all elements in expression_types are the integer type
             for expression_type in expression_types:
                 if expression_type != "int":
-                    raise Exception("Array index must be integer")
+                    # raise Exception("Array index must be integer")
+                    error_message = "Array index must be integer, but got {}".format(expression_type)
+                    context.record_error(error_message)
             array_symbol = context.get_array(id_token)
             # split expression_list by ','
             count = 0
@@ -250,12 +250,16 @@ def visit_variable(node: Tree, context: Context, func_name: str):
     if isArray:
         array = context.get_array(id_token)
         if array is None:
-            raise Exception("Array not declared: {}".format(id_token))
+            # raise Exception("Array not declared: {}".format(id_token))
+            error_message = "Array used but not declared: {}".format(id_token)
+            context.record_error(error_message)
         variable_type = array.type
     else:
         value = context.get_value(id_token)
         if value is None:
-            raise Exception("Variable not declared: {}".format(id_token))
+            # raise Exception("Variable not declared: {}".format(id_token))
+            error_message = "Variable not declared: {}".format(id_token)
+            context.record_error(error_message)
         variable_type = value.type
     tokens.append(id_token)
     tokens.extend(id_varpart)
@@ -279,13 +283,16 @@ def visit_function_call(node: Tree, context: Context, func_name: str):
     tokens = []
     function_type = None
     function = None
+    function_name = None
     for child in node.children:
         if child.data == "func_id":
             function_token = visit_func_id(child)
             function_name = function_token[0]
             function = context.get_func(function_name)
             if function is None:
-                raise Exception("Function not declared: {}".format(function_name))
+                # raise Exception("Function not declared: {}".format(function_name))
+                error_message = "Function not declared: {}".format(function_name)
+                context.record_error(error_message)
             function_type = function.header[0]
             tokens.extend(function_token)
         elif child.data == "expression_list":
@@ -293,9 +300,15 @@ def visit_function_call(node: Tree, context: Context, func_name: str):
             expression_list_tokens, expression_types = visit_expression_list(child, context, func_name)
             # check if the number of parameters is correct
             if len(expression_types) != len(function.parameter_list):
-                raise Exception("Number of parameters does not match")
+                # raise Exception("Number of parameters does not match")
+                error_message = "Number of parameters while calling function {} does not match:".format(function_name)
+                error_message += " expected {}, got {}".format(len(function.parameter_list), len(expression_types))
+                context.record_error(error_message)
             if expression_types != function.parameter_list:
-                raise Exception("Parameter types do not match")
+                # raise Exception("Parameter types do not match")
+                error_message = "Parameter types while calling function {} do not match:".format(function_name)
+                error_message += " expected {}, got {}".format(function.parameter_list, expression_types)
+                context.record_error(error_message)
             tokens.extend(expression_list_tokens)
             tokens.append(")")
         else:
@@ -408,10 +421,6 @@ def visit_expression_list(node: Tree, context: Context, func_name: str):
         expression_tokens, expression_type = visit_expression(child, context, func_name)
         expression_types.append(expression_type)
         tokens.extend(expression_tokens)
-    # test if all members of tokens are string
-    for token in tokens:
-        if not isinstance(token, str):
-            raise Exception("Token is not string: {}".format(token))
     return tokens, expression_types
 
 

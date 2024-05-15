@@ -1,22 +1,19 @@
-from mp2c import Converter
+import mp2c
 
 array_test_code = r"""
 program ArrayTest1;
 
 var
   arr: array[1..10] of integer;
-  i: integer;
+  i: real;
 
 begin
-  { 初始化数组 }
-  for i := 1 to 10 do
-    arr[i] := i;
-
-  { 访问数组元素 }
-  for i := 1 to 10 do
-    write(arr[i]);
+  arr[i] := 1;
 end.
 """
-converter = Converter()
-success, result = converter(array_test_code, debug=True)
-print(result)
+converter = mp2c.Converter()
+result = converter.convert(array_test_code, debug = True)
+print(result.success)
+print(result.code)
+print(result.error_messages)
+print(result.error_info)
