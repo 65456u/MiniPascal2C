@@ -1,7 +1,7 @@
 program example(input, output);
 
 var
-  x, y: integer;
+  x, y: real;
 
 function gcd(a, b: integer): integer;
 begin
@@ -12,6 +12,6 @@ begin
 end;
 
 begin
-  read(x, a);
+  read(x, y);
   write(gcd(x, y));
 end.

@@ -84,12 +84,13 @@ def compile_txt(source, target):
         t_line_numbers.tag_add("coloredText", end_index, tk.END)
         t_line_numbers.tag_config("coloredText", foreground = "red")
         # 错误信息写入target文本框
-        #outputErrorMsg = errorMsg.split("error: ", 1)[1]
+        # outputErrorMsg = errorMsg.split("error: ", 1)[1]
         outputErrorMsg = compileRes.error_messages[0]
         end_index = target.index(tk.END)
         target.insert(tk.END, "\n\n" + outputErrorMsg)
         target.tag_add("coloredText", end_index, tk.END)
         target.tag_config("coloredText", foreground = "red")
+        print(errorMsg)
         # 标红错误行
         lineNum = int(errorMsg.split(".c:", 1)[1].split(":", 1)[0])
         start_index = f"{lineNum}.0"
