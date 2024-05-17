@@ -146,6 +146,7 @@ class TinyCCompiler(ctk.CTk):
             self.target_txt.insert(ctk.END, res_string)
             self.update_target_line_numbers()
             end_index = self.t_line_numbers.index(ctk.END)
+            self.t_line_numbers.configure(state = ctk.NORMAL)
             self.t_line_numbers.insert(ctk.END, "\n\n" + "err:")
             self.t_line_numbers.tag_add("coloredText", end_index, ctk.END)
             self.t_line_numbers.tag_config("coloredText", foreground = "red")
@@ -164,6 +165,7 @@ class TinyCCompiler(ctk.CTk):
             self.t_line_numbers.tag_config("colored", background = "red")
             self.t_line_numbers.configure(state = ctk.DISABLED)
             self.target_txt.configure(state = ctk.DISABLED)
+            self.s_line_numbers.configure(state = ctk.DISABLED)
 
         elif not is_visiting_error:
             self.compile_succeed = False
