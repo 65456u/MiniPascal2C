@@ -5,15 +5,45 @@ from .utils import *
 
 
 def visit_empty(node: Tree, context: Context):
+    """
+    This function is used to visit an empty node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: An empty list of tokens.
+    """
     tokens = []
     return tokens
 
 
 def visit_optional_fraction(node: Tree, context: Context):
+    """
+    This function is used to visit an optional fraction node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        str: The value of the first child of the node.
+    """
     return node.children[0].value
 
 
 def visit_num(node: Tree, context: Context):
+    """
+    This function is used to visit a number node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list containing the tokens and the type name.
+    """
     tokens = []
     typename = ""
     for child in node.children:
@@ -33,6 +63,16 @@ def visit_num(node: Tree, context: Context):
 
 
 def visit_period(node: Tree, context: Context):
+    """
+    Visit a period node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of periods.
+    """
     periods = []
     current_period = []
     for child in node.children:
@@ -49,10 +89,30 @@ def visit_period(node: Tree, context: Context):
 
 
 def visit_basic_type(node: Tree, context: Context):
+    """
+    Visit a basic type node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        str: The basic type of the node.
+    """
     return type_map[node.children[0].value]
 
 
 def visit_type(node: Tree, context: Context):
+    """
+    Visit a type node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        dict: A dictionary containing the basic type, whether it's an array, and the period.
+    """
     type_ = {"basic_type": None, "is_array": False, "period": []}
     for child in node.children:
         if child.data == "basic_type":
@@ -66,6 +126,17 @@ def visit_type(node: Tree, context: Context):
 
 
 def visit_id(node: Tree, context: Context, func_name: str):
+    """
+    Visit an id node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        str: The id of the node.
+    """
     name = node.children[0].value
     if name == func_name:
         return "_" + name
@@ -74,6 +145,16 @@ def visit_id(node: Tree, context: Context, func_name: str):
 
 
 def visit_idlist(node: Tree, context: Context):
+    """
+    Visit an idlist node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of ids.
+    """
     ids = []
     for child in node.children:
         if child.data == "id":
@@ -87,12 +168,20 @@ def visit_idlist(node: Tree, context: Context):
 
 
 def visit_value_parameter(node: Tree, context: Context):
+    """
+    Visit a value parameter node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        dict: A dictionary containing the ids and type of the node.
+    """
     ids = []
     type_ = None
     for child in node.children:
         if child.data == "idlist":
-            # 函数形参不需要考虑名称修正
-            # ids = visit_idlist(child, context, None)
             ids = visit_idlist(child, context)
         elif child.data == "basic_type":
             type_ = visit_basic_type(child, context)
@@ -102,6 +191,16 @@ def visit_value_parameter(node: Tree, context: Context):
 
 
 def visit_var_parameter(node: Tree, context: Context):
+    """
+    Visit a var parameter node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        tuple: A tuple containing the tokens and value parameter.
+    """
     value_parameter = visit_value_parameter(node.children[0], context)
     tokens = construct_parameter_tokens(value_parameter, context, var = True)
 
@@ -109,6 +208,17 @@ def visit_var_parameter(node: Tree, context: Context):
 
 
 def construct_parameter_tokens(value_parameter, context, var = False):
+    """
+    Construct parameter tokens.
+
+    Args:
+        value_parameter (dict): The value parameter.
+        context (Context): The context in which the node exists.
+        var (bool, optional): A flag indicating if the parameter is a variable. Defaults to False.
+
+    Returns:
+        list: A list of tokens.
+    """
     tokens = []
     first = True
     for id_ in value_parameter["ids"]:
@@ -126,6 +236,16 @@ def construct_parameter_tokens(value_parameter, context, var = False):
 
 
 def visit_parameter(node: Tree, context: Context):
+    """
+    Visit a parameter node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        tuple: A tuple containing the tokens, parameter, and a flag indicating if it's a variable.
+    """
     tokens = []
     parameter = None
     var = False
@@ -142,6 +262,16 @@ def visit_parameter(node: Tree, context: Context):
 
 
 def visit_parameter_list(node: Tree, context: Context):
+    """
+    Visit a parameter list node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        tuple: A tuple containing the tokens, parameter list, and a list of flags indicating if they are variables.
+    """
     tokens = []
     first = True
     parameter_list = []
@@ -162,6 +292,16 @@ def visit_parameter_list(node: Tree, context: Context):
 
 
 def visit_formal_parameter(node: Tree, context: Context):
+    """
+    Visit a formal parameter node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        tuple: A tuple containing the tokens, parameter list, and a list of flags indicating if they are variables.
+    """
     tokens = ["("]
     parameter_list_tokens, parameter_list, var_list = visit_parameter_list(node.children[0], context)
     tokens.extend(parameter_list_tokens)
@@ -169,40 +309,16 @@ def visit_formal_parameter(node: Tree, context: Context):
     return tokens, parameter_list, var_list
 
 
-def visit_subprogram_head(node: Tree, context: Context):
-    tokens = []
-    basic_type = None
-    id_ = None
-    formal_parameter_tokens = None
-    parameter_info_list = None
-    parameter_list = []
-    var_list = []
-    for child in node.children:
-        if child.data == "basic_type":
-            basic_type = visit_basic_type(child, context)
-        elif child.data == "id":
-            # subprogram_head中的id不需要考虑func_name修正
-            id_ = visit_id(child, context, "")
-        elif child.data == "formal_parameter":
-            formal_parameter_tokens, parameter_info_list, var_list = visit_formal_parameter(child, context)
-        else:
-            raise Exception("Unknown subprogram_head child data: {}".format(child.data))
-    if basic_type:
-        tokens.append(basic_type)
-    else:
-        tokens.append("void")
-    tokens.append(id_)
-    tokens.extend(formal_parameter_tokens)
-    is_reference = []
-    for id_group in parameter_info_list:
-        for _ in id_group["ids"]:
-            parameter_list.append(id_group["type"])
-            is_reference.append(id_group["var"])
-    context.register_func(id_, tokens, parameter_list, is_reference)
-    return tokens
-
-
 def visit_func_id(node):
+    """
+    Visit a function id node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+
+    Returns:
+        list: A list of tokens representing the function id.
+    """
     tokens = []
     for child in node.children:
         assert child.data == "id"
@@ -215,6 +331,18 @@ def visit_func_id(node):
 
 
 def visit_id_varpart(node: Tree, context: Context, func_name: str, id_token):
+    """
+    Visit an id varpart node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+        id_token (str): The id token.
+
+    Returns:
+        list: A list of tokens representing the id varpart.
+    """
     tokens = []
     for child in node.children:
         if child.data == "empty":
@@ -249,6 +377,17 @@ def visit_id_varpart(node: Tree, context: Context, func_name: str, id_token):
 
 
 def visit_variable(node: Tree, context: Context, func_name: str):
+    """
+    Visit a variable node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        tuple: A tuple containing a list of tokens representing the variable and the variable type.
+    """
     tokens = []
     isArray = False
     id_varpart = []
@@ -288,6 +427,17 @@ def visit_variable(node: Tree, context: Context, func_name: str):
 
 
 def visit_variable_list(node: Tree, context: Context, func_name: str):
+    """
+    Visit a variable list node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the variable list.
+    """
     tokens = []
     first = True
     for child in node.children:
@@ -301,6 +451,18 @@ def visit_variable_list(node: Tree, context: Context, func_name: str):
 
 
 def visit_expression_list_for_call(node: Tree, context: Context, func_name: str, function_to_call: FunctionSymbol):
+    """
+    Visit an expression list for a function call in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+        function_to_call (FunctionSymbol): The function to be called.
+
+    Returns:
+        list: A list of tokens representing the expression list for the function call.
+    """
     tokens = []
     first = True
     count = 0
@@ -336,6 +498,17 @@ def visit_expression_list_for_call(node: Tree, context: Context, func_name: str,
 
 
 def visit_function_call(node: Tree, context: Context, func_name: str):
+    """
+    Visit a function call node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        tuple: A tuple containing a list of tokens representing the function call and the function type.
+    """
     tokens = []
     function_type = None
     function = None
@@ -364,6 +537,17 @@ def visit_function_call(node: Tree, context: Context, func_name: str):
 
 
 def visit_factor(node: Tree, context: Context, func_name: str):
+    """
+    Visit a factor node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        tuple: A tuple containing a list of tokens representing the factor and the factor type.
+    """
     tokens = []
     factor_type = None
     for child in node.children:
@@ -398,6 +582,17 @@ def visit_factor(node: Tree, context: Context, func_name: str):
 
 
 def visit_term(node: Tree, context: Context, func_name: str):
+    """
+    Visit a term node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        tuple: A tuple containing a list of tokens representing the term and the term type.
+    """
     term_type = None
     tokens = []
     operator = None
@@ -422,6 +617,17 @@ def visit_term(node: Tree, context: Context, func_name: str):
 
 
 def visit_simple_expression(node: Tree, context: Context, func_name: str):
+    """
+    Visit a simple expression node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        tuple: A tuple containing a list of tokens representing the simple expression and the simple expression type.
+    """
     tokens = []
     simple_expression_type = None
     for child in node.children:
@@ -442,6 +648,17 @@ def visit_simple_expression(node: Tree, context: Context, func_name: str):
 
 
 def visit_expression(node: Tree, context: Context, func_name: str):
+    """
+    Visit an expression node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        tuple: A tuple containing a list of tokens representing the expression and the expression type.
+    """
     tokens = []
     isBool = False
     simple_expression_type = None
@@ -468,6 +685,18 @@ def visit_expression(node: Tree, context: Context, func_name: str):
 
 
 def visit_expression_list(node: Tree, context: Context, func_name: str, is_call = False):
+    """
+    Visit an expression list node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+        is_call (bool, optional): A flag indicating if the expression list is for a function call. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing a list of tokens representing the expression list and a list of expression types.
+    """
     tokens = []
     first = True
     expression_types = []
@@ -483,6 +712,17 @@ def visit_expression_list(node: Tree, context: Context, func_name: str, is_call 
 
 
 def visit_assign_statement(node: Tree, context: Context, func_name: str):
+    """
+    Visit an assign statement node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the assign statement.
+    """
     tokens = []
     variable_type = None
     expression_type = None
@@ -511,6 +751,17 @@ def visit_assign_statement(node: Tree, context: Context, func_name: str):
 
 
 def visit_if_else_statement(node: Tree, context: Context, func_name: str):
+    """
+    Visit an if-else statement node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the if-else statement.
+    """
     tokens = []
     for child in node.children:
         if child.data == "expression":
@@ -535,6 +786,17 @@ def visit_if_else_statement(node: Tree, context: Context, func_name: str):
 
 
 def visit_else_part(node: Tree, context: Context, func_name: str):
+    """
+    Visit an else part node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the else part.
+    """
     tokens = []
     for child in node.children:
         if child.data == "empty":
@@ -551,6 +813,17 @@ def visit_else_part(node: Tree, context: Context, func_name: str):
 
 
 def construct_read_params(node: Tree, context: Context, func_name: str):
+    """
+    Construct read parameters from a node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the read parameters.
+    """
     tokens = []
     types = []
     expressions = []
@@ -571,6 +844,17 @@ def construct_read_params(node: Tree, context: Context, func_name: str):
 
 
 def types_to_format(types, context, line = False):
+    """
+    Convert types to format strings.
+
+    Args:
+        types (list): A list of types.
+        context (Context): The context in which the node exists.
+        line (bool, optional): A flag indicating if a newline should be added. Defaults to False.
+
+    Returns:
+        str: The format string.
+    """
     format_ = '"'
     for id_type in types:
         if id_type == "int":
@@ -593,6 +877,18 @@ def types_to_format(types, context, line = False):
 
 
 def construct_write_params(node: Tree, context: Context, func_name: str, line = False):
+    """
+    Construct write parameters from a node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+        line (bool, optional): A flag indicating if a newline should be added. Defaults to False.
+
+    Returns:
+        list: A list of tokens representing the write parameters.
+    """
     tokens = []
     expressions = []
     types = []
@@ -614,6 +910,20 @@ def construct_write_params(node: Tree, context: Context, func_name: str, line = 
 
 
 def visit_procedure_call(node: Tree, context: Context, func_name: str):
+    """
+    Visit a procedure call node in the parse tree.
+
+    This function handles the procedure calls in the code, including built-in procedures like 'read', 'write', and 'writeln'.
+    It also handles user-defined procedures.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the procedure call.
+    """
     tokens = []
     isRead = False
     isWrite = False
@@ -670,6 +980,17 @@ def visit_procedure_call(node: Tree, context: Context, func_name: str):
 
 
 def visit_statement_list(node: Tree, context: Context, func_name: str):
+    """
+    Visit a statement list node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the statement list.
+    """
     tokens = []
     for child in node.children:
         if child.data == "statement":
@@ -684,6 +1005,17 @@ def visit_statement_list(node: Tree, context: Context, func_name: str):
 
 
 def visit_compound_statement(node: Tree, context: Context, func_name: str):
+    """
+    Visit a compound statement node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the compound statement.
+    """
     tokens = []
     assert node.children[0].data == "statement_list"
     statement_list_tokens = visit_statement_list(node.children[0], context, func_name)
@@ -692,6 +1024,17 @@ def visit_compound_statement(node: Tree, context: Context, func_name: str):
 
 
 def visit_for_statement(node: Tree, context: Context, func_name: str):
+    """
+    Visit a for statement node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the for statement.
+    """
     tokens = []
     id_token = []
     from_tokens = []
@@ -742,6 +1085,17 @@ def visit_for_statement(node: Tree, context: Context, func_name: str):
 
 
 def visit_while_statement(node: Tree, context: Context, func_name: str):
+    """
+    Visit a while statement node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the while statement.
+    """
     tokens = []
     for child in node.children:
         if child.data == "expression":
@@ -761,6 +1115,17 @@ def visit_while_statement(node: Tree, context: Context, func_name: str):
 
 
 def visit_statement(node: Tree, context: Context, func_name: str):
+    """
+    Visit a statement node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+
+    Returns:
+        list: A list of tokens representing the statement.
+    """
     tokens = []
     for child in node.children:
         if child.data == "procedure_call":
@@ -797,6 +1162,16 @@ def visit_statement(node: Tree, context: Context, func_name: str):
 
 
 def visit_const_value(node: Tree, context: Context):
+    """
+    Visit a constant value node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list containing tokens representing the constant value and its type.
+    """
     tokens = []
     typename = ""
     for child in node.children:
@@ -818,39 +1193,52 @@ def visit_const_value(node: Tree, context: Context):
             tokens.extend(num_tokens)
         else:
             raise Exception("Unknown const_value child data: {}".format(child.data))
-
     return [tokens, typename]
 
 
 def visit_const_declaration(node: Tree, context: Context):
+    """
+    Visit a constant declaration node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the constant declaration.
+    """
     tokens = []
     const_id = ""
     for child in node.children:
         if child.data == "id":
             tokens.append("const")
-            # 定义const_declaration时不进行id修正
             const_id = visit_id(child, context, "")
         elif child.data == "const_value":
-            res = visit_const_value(
-                child, context
-            )  # [123.456, "float"] 或 ["test", "char*"] ...
+            res = visit_const_value(child, context)
             tokens.append(res[1])
             tokens.append(const_id)
             tokens.append("=")
             tokens.extend(res[0])
             tokens.append(";")
-            # 符号表注册
             context.register_value(const_id, res[1], False, res[0])
         elif child.data == "const_declaration":
             tokens.extend(visit_const_declaration(child, context))
         else:
-            raise Exception(
-                "Unknown const_declaration child data: {}".format(child.data)
-            )
+            raise Exception("Unknown const_declaration child data: {}".format(child.data))
     return tokens
 
 
 def visit_const_declarations(node: Tree, context: Context):
+    """
+    Visit a constant declarations node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the constant declarations.
+    """
     tokens = []
     for child in node.children:
         if child.data == "const_declaration":
@@ -858,13 +1246,21 @@ def visit_const_declarations(node: Tree, context: Context):
         elif child.data == "empty":
             return tokens
         else:
-            raise Exception(
-                "Unknown const_declarations child data: {}".format(child.data)
-            )
+            raise Exception("Unknown const_declarations child data: {}".format(child.data))
     return tokens
 
 
 def visit_var_declaration(node: Tree, context: Context):
+    """
+    Visit a variable declaration node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the variable declaration.
+    """
     tokens = []
     id_lists = []
     id_types = []
@@ -890,11 +1286,20 @@ def visit_var_declaration(node: Tree, context: Context):
             else:
                 context.register_value(id_, id_type["basic_type"], True)
             tokens.append(";")
-
     return tokens
 
 
 def visit_var_declarations(node: Tree, context: Context):
+    """
+    Visit a variable declarations node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the variable declarations.
+    """
     tokens = []
     for child in node.children:
         if child.data == "var_declaration":
@@ -902,18 +1307,38 @@ def visit_var_declarations(node: Tree, context: Context):
         elif child.data == "empty":
             return tokens
         else:
-            raise Exception(
-                "Unknown var_declarations child data: {}".format(child.data)
-            )
+            raise Exception("Unknown var_declarations child data: {}".format(child.data))
     return tokens
 
 
 def visit_program_head(node: Tree, context: Context):
+    """
+    Visit a program head node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the program head.
+    """
     tokens = ['#include <stdio.h>', '#include <math.h>']
     return tokens
 
 
 def visit_subprogram_body(node: Tree, context: Context, func_name: str, ret_type: str):
+    """
+    Visit a subprogram body node in the parse tree.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+        func_name (str): The name of the function.
+        ret_type (str): The return type of the function.
+
+    Returns:
+        list: A list of tokens representing the subprogram body.
+    """
     if ret_type != "void":
         context.register_value("_" + func_name, ret_type, True)
     tokens = []
@@ -931,7 +1356,16 @@ def visit_subprogram_body(node: Tree, context: Context, func_name: str, ret_type
 
 
 def visit_function_declaration(child, context):
-    # "function" id formal_parameter ":" basic_type  subprogram_body
+    """
+    Visit a function declaration node in the parse tree.
+
+    Args:
+        child (Tree): The child node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the function declaration.
+    """
     head_tokens = []
     function_name = ""
     formal_parameter_tokens = []
@@ -973,6 +1407,19 @@ def visit_function_declaration(child, context):
 
 
 def visit_procedure_declaration(child, context):
+    """
+    Visit a procedure declaration node in the parse tree.
+
+    This function handles the declaration of a procedure in the parse tree. It extracts the procedure name,
+    formal parameters, and body of the procedure. It also registers the procedure in the context.
+
+    Args:
+        child (Tree): The child node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the procedure declaration.
+    """
     head_tokens = []
     procedure_name = ""
     formal_parameter_tokens = []
@@ -984,8 +1431,8 @@ def visit_procedure_declaration(child, context):
         if child.data == "id":
             procedure_name = visit_id(child, context, "")
         elif child.data == "formal_parameter":
-            formal_parameter_tokens, parameter_info_list, var_list = visit_formal_parameter(child, context)
-            for id_group, var in zip(parameter_info_list, var_list):
+            formal_parameter_tokens, parameter_info_list, var_s = visit_formal_parameter(child, context)
+            for id_group, var in zip(parameter_info_list, var_s):
                 for _ in id_group["ids"]:
                     var_list.append(var)
         elif child.data == "subprogram_body":
@@ -1005,6 +1452,19 @@ def visit_procedure_declaration(child, context):
 
 
 def visit_subprogram(node: Tree, context: Context):
+    """
+    Visit a subprogram node in the parse tree.
+
+    This function handles the subprogram node in the parse tree. It checks if the subprogram is a function or a procedure
+    and calls the appropriate function to handle it.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the subprogram.
+    """
     tokens = []
     for child in node.children:
         if child.data == "function_declaration":
@@ -1020,6 +1480,19 @@ def visit_subprogram(node: Tree, context: Context):
 
 
 def visit_subprogram_declarations(node: Tree, context: Context):
+    """
+    Visit a subprogram declarations node in the parse tree.
+
+    This function handles the subprogram declarations node in the parse tree. It iterates over the children of the node
+    and calls the function to handle subprogram nodes.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the subprogram declarations.
+    """
     tokens = []
     for child in node.children:
         if child.data == "subprogram":
@@ -1036,6 +1509,19 @@ def visit_subprogram_declarations(node: Tree, context: Context):
 
 
 def visit_program_body(node: Tree, context: Context):
+    """
+    Visit a program body node in the parse tree.
+
+    This function handles the program body node in the parse tree. It iterates over the children of the node
+    and calls the appropriate function to handle each child node.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the program body.
+    """
     tokens = []
     for child in node.children:
         if child.data == "const_declarations":
@@ -1055,6 +1541,20 @@ def visit_program_body(node: Tree, context: Context):
 
 
 def visit_programstruct(node: Tree, context: Context):
+    """
+    Visit a program structure node in the parse tree.
+
+    This function handles the program structure node in the parse tree. It iterates over the children of the node
+    and calls the appropriate function to handle each child node. It also handles the declaration of library functions
+    and the registration of functions in the context.
+
+    Args:
+        node (Tree): The node in the parse tree.
+        context (Context): The context in which the node exists.
+
+    Returns:
+        list: A list of tokens representing the program structure.
+    """
     context.enter_scope()
     tokens = []
     program_head_tokens = []
@@ -1081,5 +1581,4 @@ def visit_programstruct(node: Tree, context: Context):
         tokens.extend(functions[function].header)
         tokens.extend(functions[function].tokens)
     context.exit_scope()
-
     return tokens

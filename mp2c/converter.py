@@ -8,10 +8,33 @@ from .visitors import visit_programstruct
 
 
 class Converter:
+    """
+    Converts MiniPascal code to C code using a parser.
+
+    Attributes:
+        parser (Lark): The parser used for parsing MiniPascal code.
+
+    Methods:
+        __init__(self): Initializes the Converter object.
+        __call__(self, code, debug=False) -> tuple[bool, str]: Converts the given MiniPascal code to C code.
+        convert(self, code) -> Result: Converts the given MiniPascal code to C code and returns the result.
+    """
+
     def __init__(self):
         self.parser = Lark(rules, start = "programstruct")
 
     def __call__(self, code, debug = False) -> tuple[bool, str]:
+        """
+        Converts the given MiniPascal code to C code.
+
+        Args:
+            code (str): The MiniPascal code to be converted.
+            debug (bool, optional): Whether to enable debug mode. Defaults to False.
+
+        Returns:
+            tuple[bool, str]: A tuple containing the conversion status (True if successful, False otherwise)
+            and the converted C code as a string.
+        """
         status = True
         parser = self.parser
         code = preprocess(code)
@@ -26,6 +49,15 @@ class Converter:
         return status, result_string
 
     def convert(self, code) -> Result:
+        """
+        Converts the given MiniPascal code to C code and returns the result.
+
+        Args:
+            code (str): The MiniPascal code to be converted.
+
+        Returns:
+            Result: The conversion result, which includes the converted C code as a string and error messages.
+        """
         status = True
         parser = self.parser
         code = preprocess(code)
@@ -42,8 +74,3 @@ class Converter:
             error_messages = context.error_messages
             return Result(result_string, False, error_messages)
         return Result(result_string, True)
-
-
-def error_handler(e):
-    print(e.token.type)
-    return False

@@ -1,3 +1,4 @@
+# Grammar rules for MiniPascal
 rules = r"""
 RELOP                    : EQUAL
                          | "<>"

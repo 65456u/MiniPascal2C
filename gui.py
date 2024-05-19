@@ -26,12 +26,8 @@ class MP2CGUI(ctk.CTk):
         self.compile_succeed = False
         self.cn_font = ctk.CTkFont(family = "思源黑体 CN", size = 15)
         self.create_frames()
-        # self.create_source_txt(self.frame_top_left)
-        # self.create_target_txt(self.frame_top_right)
         self.create_textbox(self.frame_source, "源文件", True)
         self.create_textbox(self.frame_target, "编译状态：未编译", False)
-        # self.create_scrollbar(self.frame_top_left)
-        # self.create_scrollbar(self.frame_top_right)
         self.create_buttons(self.frame_buttons)
 
     def run(self):
@@ -167,11 +163,6 @@ class MP2CGUI(ctk.CTk):
             line_num = int(error_msg.split(".c:", 1)[1].split(":", 1)[0])
             start_index = f"{line_num}.0"
             end_index = f"{line_num + 1}.0"
-            # self.target_txt.tag_add("colored", start_index, end_index)
-            # self.target_txt.tag_config("colored", background = "red")
-            # self.t_line_numbers.tag_add("colored", start_index, end_index)
-            # self.t_line_numbers.tag_config("colored", background = "red")
-            # self.t_line_numbers.configure(state = ctk.DISABLED)
             add_tags(self.target_txt, self.t_line_numbers, start_index, end_index)
             self.target_txt.configure(state = ctk.DISABLED)
 
@@ -195,11 +186,6 @@ class MP2CGUI(ctk.CTk):
             line_num = int(error_msg.split("at line ", 1)[1].split(" ", 1)[0])
             start_index = f"{line_num}.0"
             end_index = f"{line_num + 1}.0"
-            # self.source_txt.tag_add("colored", start_index, end_index)
-            # self.source_txt.tag_config("colored", background = "red")
-            # self.s_line_numbers.tag_add("colored", start_index, end_index)
-            # self.s_line_numbers.tag_config("colored", background = "red")
-            # self.s_line_numbers.configure(state = ctk.DISABLED)
             add_tags(self.source_txt, self.s_line_numbers, start_index, end_index)
 
     def update_target_line_numbers(self):
@@ -226,7 +212,7 @@ class MP2CGUI(ctk.CTk):
         if self.compile_succeed:
             code = self.target_txt.get("1.0", "end-1c")
             os.makedirs("temp", exist_ok = True)
-            compile_result = subprocess.run(['gcc', '-xc', '-', '-o', "./temp/output"], input = code,
+            compile_result = subprocess.run(['clang', '-lm', '-xc', '-', '-o', "./temp/output"], input = code,
                                             capture_output = True, text = True)
             if compile_result.returncode != 0:
                 return None, compile_result.stderr
