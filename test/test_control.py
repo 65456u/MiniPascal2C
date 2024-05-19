@@ -59,3 +59,22 @@ class TestControl:
         output = compile_code(result)
 
         assert output == "12345678910"
+
+    def test_while_loop(self):
+        control_test_code = r"""
+        program WhileLoopTest;
+        var
+            i: integer;
+        begin
+            i := 1;
+            while i <= 10 do
+            begin
+                write(i);
+                i := i + 1;
+            end;
+        end.
+        """
+        converter = Converter()
+        success, result = converter(control_test_code, debug = True)
+        output = compile_code(result)
+        assert output == "12345678910"

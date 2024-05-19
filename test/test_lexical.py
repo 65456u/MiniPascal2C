@@ -80,18 +80,18 @@ class TestLexical:
         begin
           a := 10;
           b := 3;
-          write(a + b);
-          write(a - b);
-          write(a * b);
-          write(a / b);
-          write(a div b);
-          write(a mod b);
+          writeln(a + b);
+          writeln(a - b);
+          writeln(a * b);
+          writeln(a / b);
+          writeln(a div b);
+          writeln(a mod b);
         end.
         """
         converter = Converter()
         success, result = converter(operator_test_code, debug = True)
         output = compile_code(result)
-        assert output == "13730331"
+        assert output == "13\n7\n30\n3.333333\n3\n1\n"
 
     def test_lexical_comment(self):
         comment_test_code = r"""

@@ -9,7 +9,7 @@ from .visitors import visit_programstruct
 
 class Converter:
     def __init__(self):
-        self.parser = Lark(rules, start = "programstruct", debug = True)
+        self.parser = Lark(rules, start = "programstruct")
 
     def __call__(self, code, debug = False) -> tuple[bool, str]:
         status = True
@@ -25,7 +25,7 @@ class Converter:
         result_string = format_code(result_string)
         return status, result_string
 
-    def convert(self, code, debug = False) -> Result:
+    def convert(self, code) -> Result:
         status = True
         parser = self.parser
         code = preprocess(code)

@@ -16,20 +16,20 @@ class Context:
         self.symbol_table.pop()
         self.current_scope_index -= 1
 
-    def register_func(self, name, header, parameter_list):
+    def register_func(self, name, header, parameter_list, var_parameter, tokens = None, is_library = False):
         if self.current_scope_index < 0 or self.current_scope_index >= len(self.symbol_table):
             raise Exception("try to register function {} in no scope ".format(name))
         functions_in_top_smbltab = self.symbol_table[self.current_scope_index - 1]["subprogram"]
-        functions_in_top_smbltab[name] = FunctionSymbol(name, header, None, parameter_list)
+        functions_in_top_smbltab[name] = FunctionSymbol(name, header, tokens, parameter_list, var_parameter, is_library)
 
     def declare_func(self, name, tokens):
         self.symbol_table[self.current_scope_index - 1]["subprogram"][name].tokens = tokens
 
-    def register_value(self, name, value_type, mutable, value = None):
+    def register_value(self, name, value_type, mutable, value = None, var = False):
         if self.current_scope_index < 0 or self.current_scope_index >= len(self.symbol_table):
             raise Exception("try to register value {} in no scope ".format(name))
         values_in_top_smbltab = self.symbol_table[self.current_scope_index]["value"]
-        values_in_top_smbltab[name] = ValueSymbol(name, value_type, mutable, value)
+        values_in_top_smbltab[name] = ValueSymbol(name, value_type, mutable, value, var)
 
     def register_array(self, name, array_type, periods):  # periods(start, last) : [[1, 5], [2, 4]]
         if self.current_scope_index < 0 or self.current_scope_index >= len(self.symbol_table):
@@ -84,38 +84,39 @@ class Context:
         self.on_error = True
         self.error_messages.append(message)
 
-    # def cname_to_type(self, name):
-    #     res = int
-    #     if name == "float" :
-    #         res = float
-    #     elif name == "char" or name == "char*":
-    #         res = str
-    #     elif name == "bool":
-    #         res = bool
-    #     return res
+    def declare_library_functions(self):
+        single_double_math_function_names = ["acos", "asin", "atan", "cos", "cosh", "sin", "sinh", "tanh", "exp", "log",
+                                             "log10", "sqrt", "ceil", "fabs", "floor"]
+        for function_name in single_double_math_function_names:
+            self.register_func(function_name, ["float", function_name, "(", "float", "x", ")", ";"],
+                               [{'ids': ['x'], 'type': 'float'}], [False], tokens = [], is_library = True)
 
 
 class FunctionSymbol:
-    def __init__(self, name, header, tokens, parameter_list):
+    def __init__(self, name, header, tokens, parameter_list, var_parameter, is_library = False):
         self.name = name
         self.header = header
         self.tokens = tokens
         self.parameter_list = parameter_list
+        self.var_parameter = var_parameter
+        self.is_library = is_library
 
     def __repr__(self) -> str:
-        description = "Function: " + self.name + "\n"
-        description += "Header: " + " ".join(self.header) + "\n"
-        description += "Tokens: " + str(self.tokens) + "\n"
-        description += "Parameters: " + str(self.parameter_list) + "\n"
+        description = "Function: " + self.name + " "
+        description += "Header: " + " ".join(self.header) + " "
+        description += "Tokens: " + str(self.tokens) + " "
+        description += "Parameters: " + str(self.parameter_list) + " "
+        description += "Var Parameter: " + str(self.var_parameter) + " "
         return description
 
 
 class ValueSymbol:
-    def __init__(self, name, value_type, mutable, value):
+    def __init__(self, name, value_type, mutable, value, var = False):
         self.name = name
         self.type = value_type
         self.mutable = mutable
         self.value = value
+        self.var = var
 
     def __repr__(self) -> str:
         description = "Value: " + self.name + "\n"
